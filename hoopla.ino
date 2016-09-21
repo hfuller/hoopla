@@ -4,23 +4,28 @@
 #include <ArduinoOTA.h>
 #include "FastLED.h"
 
-#define VERSION		1
-#define DEBUG
+#define VERSION			2
 
-#define NUMPIXELS	1
-#define DATA_PIN	0 
-#define CLOCK_PIN	2
+#define DEBUG			true
+#define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
+
+#define NUMPIXELS		1
+#define DATA_PIN		0
+#define CLOCK_PIN		2
+#define FRAMERATE		60					//how many frames per second to we ideally want to run
+#define MAX_LOAD_MA		400					//how many mA are we allowed to draw, at 5 volts
 
 const char* ssid = "";
 const char* password = "";
 
 CRGB leds[NUMPIXELS];
 
-bool updating = false;
+unsigned long timer1s;
+unsigned long frameCount;
 
 void setup() {
 	
-	#ifdef debug
+	#ifdef DEBUG
 	delay(1000); //TODO debug
 	#endif
 
@@ -29,6 +34,9 @@ void setup() {
 
 	Serial.println("Starting LEDs");
 	FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, BGR>(leds, NUMPIXELS);
+	FastLED.setMaxPowerInVoltsAndMilliamps(5,MAX_LOAD_MA); //assuming 5V
+	FastLED.setCorrection(TypicalSMD5050);
+	FastLED.setMaxRefreshRate(FRAMERATE);
 
 	Serial.println("Starting wireless");
 	WiFi.mode(WIFI_STA);
@@ -78,12 +86,30 @@ void loop() {
 	
 	ArduinoOTA.handle();
 
-	Serial.println("Doing LED stuff");
-	leds[0] = CRGB::Green;
+	if ( (millis() - timer1s) > 1000 ) {
+
+		//time to do our every-second tasks
+		#ifdef DEBUG
+		double fr = (double)frameCount/((double)(millis()-timer1s)/1000);
+		Serial.print("#FRAME RATE: "); Serial.print(fr);
+		uint32_t loadmw = calculate_unscaled_power_mW(leds,NUMPIXELS);
+		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw/5); Serial.print("mA)");
+		Serial.println();
+		#endif /*DEBUG*/
+
+		timer1s = millis();
+		frameCount = 0;
+
+	}
+
+	//Serial.println("Doing LED stuff");
+	frameCount++; //for frame rate measurement
+
+	if ( leds[0] == CRGB(0,0,0) ) {
+		leds[0] = CRGB::Green;
+	} else {
+		leds[0] = CRGB::Black;
+	}
 	FastLED.show();
-	delay(500);
-	leds[0] = CRGB::Black;
-	FastLED.show();
-	delay(500);
 
 }
