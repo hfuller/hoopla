@@ -4,12 +4,12 @@
 #include <ArduinoOTA.h>
 #include "FastLED.h"
 
-#define VERSION			2
+#define VERSION			3
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
 
-#define NUMPIXELS		1
+#define NUMPIXELS		24
 #define DATA_PIN		0
 #define CLOCK_PIN		2
 #define FRAMERATE		60					//how many frames per second to we ideally want to run
@@ -37,6 +37,10 @@ void setup() {
 	FastLED.setMaxPowerInVoltsAndMilliamps(5,MAX_LOAD_MA); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
 	FastLED.setMaxRefreshRate(FRAMERATE);
+	for ( int i=0; i<NUMPIXELS; i++ ) {
+		leds[i] = CRGB::Black;
+	}
+	FastLED.show();
 
 	Serial.println("Starting wireless");
 	WiFi.mode(WIFI_STA);
@@ -113,3 +117,4 @@ void loop() {
 	FastLED.show();
 
 }
+
