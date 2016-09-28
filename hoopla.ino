@@ -4,12 +4,12 @@
 #include <ArduinoOTA.h>
 #include "FastLED.h"
 
-#define VERSION			3
+#define VERSION			4
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
 
-#define NUMPIXELS		24
+#define NUMPIXELS		24					//NOTE: we write 300 pixels in some cases, like when blanking the strip.
 #define DATA_PIN		0
 #define CLOCK_PIN		2
 #define FRAMERATE		60					//how many frames per second to we ideally want to run
@@ -18,10 +18,20 @@
 const char* ssid = "";
 const char* password = "";
 
-CRGB leds[NUMPIXELS];
+CRGB leds[300];
 
 unsigned long timer1s;
 unsigned long frameCount;
+
+CRGBPalette16 currentPalette;
+CRGBPalette16 targetPalette;
+uint8_t maxChanges = 24; 
+TBlendType currentBlending;
+
+void runColorpalBeat();
+void runFill();
+void FillLEDsFromPaletteColors(uint8_t colorIndex);
+void SetupRandomPalette();
 
 void setup() {
 	
@@ -33,18 +43,24 @@ void setup() {
 	Serial.print("hoopla v"); Serial.println(VERSION);
 
 	Serial.println("Starting LEDs");
-	FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, BGR>(leds, NUMPIXELS);
+	FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, BGR>(leds, 300);
 	FastLED.setMaxPowerInVoltsAndMilliamps(5,MAX_LOAD_MA); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
 	FastLED.setMaxRefreshRate(FRAMERATE);
-	for ( int i=0; i<NUMPIXELS; i++ ) {
+
+	for ( int i=0; i<300; i++ ) {
 		leds[i] = CRGB::Black;
 	}
-	FastLED.show();
+	leds[0] = CRGB::Red; FastLED.show();
+	Serial.println("Starting effects");
+	currentPalette = RainbowColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	targetPalette = RainbowColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	currentBlending = LINEARBLEND;
 
 	Serial.println("Starting wireless");
 	WiFi.mode(WIFI_STA);
 
+	runFill(); leds[0] = CRGB::Orange; FastLED.show();
 	Serial.print("Attempting to associate (STA) to "); Serial.println(WiFi.SSID());
 	WiFi.begin();
 	if (WiFi.waitForConnectResult() != WL_CONNECTED) {
@@ -62,17 +78,28 @@ void setup() {
 	// No authentication by default
 	// ArduinoOTA.setPassword((const char *)"123");
 
+	runFill(); leds[0] = CRGB::Yellow; FastLED.show();
 	Serial.println("Setting up OTA");
 	ArduinoOTA.onStart([]() {
+		runFill(); leds[0] = CRGB::OrangeRed; FastLED.show();
 		Serial.println("Starting OTA update. Other functions will be suspended.");
 	});
 	ArduinoOTA.onEnd([]() {
+		runFill(); leds[0] = CRGB::Lime; FastLED.show();
 		Serial.println("\nOTA update complete. Reloading");
 	});
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+		if ( leds[0] == CRGB(0,0,0) ) {
+			leds[0] = CRGB::OrangeRed; 
+	    } else {
+	        leds[0] = CRGB::Black;
+	    }
+		FastLED.show();
+
 		Serial.printf("OTA progress: %u%%\r", (progress / (total / 100)));
 	});
 	ArduinoOTA.onError([](ota_error_t error) {
+		runFill(); leds[0] = CRGB::Red; FastLED.show();
 		Serial.printf("OTA Error[%u]: ", error);
 		if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
 		else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
@@ -82,6 +109,7 @@ void setup() {
 	});
 	ArduinoOTA.begin();
 
+	runFill(); leds[0] = CRGB::Green; FastLED.show();
 	Serial.print("Startup complete. IP address: ");
 	Serial.println(WiFi.localIP());
 }
@@ -106,15 +134,50 @@ void loop() {
 
 	}
 
-	//Serial.println("Doing LED stuff");
 	frameCount++; //for frame rate measurement
 
+	/*
 	if ( leds[0] == CRGB(0,0,0) ) {
 		leds[0] = CRGB::Green;
 	} else {
 		leds[0] = CRGB::Black;
 	}
-	FastLED.show();
+	*/
+
+	runColorpalBeat();
 
 }
 
+//EFFECTS
+
+void runFill() {
+	for ( int i=0; i<NUMPIXELS; i++ ) {
+		leds[i] = CRGB::Black;
+	}
+}
+	
+void runColorpalBeat() {
+	uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
+	FillLEDsFromPaletteColors(beatA);
+
+	show_at_max_brightness_for_power(); //FastLED.show();
+
+	//nblendPaletteTowardPalette( currentPalette, targetPalette, maxChanges);
+	EVERY_N_MILLISECONDS(5000) {
+		SetupRandomPalette();
+	}
+}
+
+
+//UTILITIES FOR EFFECTS
+
+void FillLEDsFromPaletteColors(uint8_t colorIndex) {
+	//uint8_t beatB = beatsin8(30, 10, 20);                       // Delta hue between LED's
+    for (int i = 0; i < NUMPIXELS; i++) {
+	    leds[i] = ColorFromPalette(currentPalette, colorIndex, 255, currentBlending);
+	    //colorIndex += beatB;
+	}
+} //FillLEDsFromPaletteColors()
+void SetupRandomPalette() {
+	targetPalette = CRGBPalette16(CHSV(random8(), 255, 32), CHSV(random8(), random8(64)+192, 255), CHSV(random8(), 255, 32), CHSV(random8(), 255, 255)); 
+} // SetupRandomPalette()
