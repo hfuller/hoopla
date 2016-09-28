@@ -90,7 +90,7 @@ void loop() {
 	
 	ArduinoOTA.handle();
 
-	if ( (millis() - timer1s) > 1000 ) {
+	EVERY_N_MILLISECONDS(1000) {
 
 		//time to do our every-second tasks
 		#ifdef DEBUG
