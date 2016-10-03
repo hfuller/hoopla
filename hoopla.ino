@@ -4,7 +4,7 @@
 #include <ArduinoOTA.h>
 #include "FastLED.h"
 
-#define VERSION			4
+#define VERSION			5
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -23,6 +23,9 @@ CRGB leds[300];
 unsigned long timer1s;
 unsigned long frameCount;
 
+byte effect = 0;
+CRGB color = CRGB::Teal;
+CRGB nextColor = CRGB::Black;
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
 uint8_t maxChanges = 24; 
@@ -30,8 +33,11 @@ TBlendType currentBlending;
 
 void runColorpalBeat();
 void runFill();
+void runSolidOne();
+void runBlinkOne();
 void FillLEDsFromPaletteColors(uint8_t colorIndex);
 void SetupRandomPalette();
+void runLeds();
 
 void setup() {
 	
@@ -47,27 +53,23 @@ void setup() {
 	FastLED.setMaxPowerInVoltsAndMilliamps(5,MAX_LOAD_MA); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
 	FastLED.setMaxRefreshRate(FRAMERATE);
-
 	for ( int i=0; i<300; i++ ) {
 		leds[i] = CRGB::Black;
 	}
 	leds[0] = CRGB::Red; FastLED.show();
+
 	Serial.println("Starting effects");
 	currentPalette = RainbowColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
 	targetPalette = RainbowColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
 	currentBlending = LINEARBLEND;
+	effect = 2; //solid for status indication
 
+	color = CRGB::Orange; runLeds();
 	Serial.println("Starting wireless");
 	WiFi.mode(WIFI_STA);
 
-	runFill(); leds[0] = CRGB::Orange; FastLED.show();
 	Serial.print("Attempting to associate (STA) to "); Serial.println(WiFi.SSID());
 	WiFi.begin();
-	if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-		Serial.println("Could not associate (STA)");
-		//delay(5000);
-		//ESP.restart();
-	}
 
 	// Port defaults to 8266
 	// ArduinoOTA.setPort(8266);
@@ -78,28 +80,31 @@ void setup() {
 	// No authentication by default
 	// ArduinoOTA.setPassword((const char *)"123");
 
-	runFill(); leds[0] = CRGB::Yellow; FastLED.show();
+	color = CRGB::Yellow; runLeds();
 	Serial.println("Setting up OTA");
 	ArduinoOTA.onStart([]() {
-		runFill(); leds[0] = CRGB::OrangeRed; FastLED.show();
+		effect = 1;
+		color = CRGB::OrangeRed;
 		Serial.println("Starting OTA update. Other functions will be suspended.");
 	});
 	ArduinoOTA.onEnd([]() {
-		runFill(); leds[0] = CRGB::Lime; FastLED.show();
+		effect = 2;
+		color = CRGB::Lime;
+		runLeds();
 		Serial.println("\nOTA update complete. Reloading");
 	});
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
 		if ( leds[0] == CRGB(0,0,0) ) {
-			leds[0] = CRGB::OrangeRed; 
+			color = CRGB::OrangeRed; 
 	    } else {
-	        leds[0] = CRGB::Black;
+	        color = CRGB::Black;
 	    }
-		FastLED.show();
+		runLeds();
 
 		Serial.printf("OTA progress: %u%%\r", (progress / (total / 100)));
 	});
 	ArduinoOTA.onError([](ota_error_t error) {
-		runFill(); leds[0] = CRGB::Red; FastLED.show();
+		color = CRGB::Red;
 		Serial.printf("OTA Error[%u]: ", error);
 		if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
 		else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
@@ -109,7 +114,7 @@ void setup() {
 	});
 	ArduinoOTA.begin();
 
-	runFill(); leds[0] = CRGB::Green; FastLED.show();
+	color = CRGB::Green; runLeds();
 	Serial.print("Startup complete. IP address: ");
 	Serial.println(WiFi.localIP());
 }
@@ -125,7 +130,8 @@ void loop() {
 		double fr = (double)frameCount/((double)(millis()-timer1s)/1000);
 		Serial.print("#FRAME RATE: "); Serial.print(fr);
 		uint32_t loadmw = calculate_unscaled_power_mW(leds,NUMPIXELS);
-		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw/5); Serial.print("mA)");
+		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw/5); Serial.print("mA) - ");
+		Serial.print("Wi-Fi: "); Serial.print( (WiFi.status() == WL_CONNECTED) ? "Connected" : "Disconnected");
 		Serial.println();
 		#endif /*DEBUG*/
 
@@ -134,6 +140,12 @@ void loop() {
 
 	}
 
+	runLeds();
+
+}
+
+void runLeds() {
+	
 	frameCount++; //for frame rate measurement
 
 	/*
@@ -144,7 +156,22 @@ void loop() {
 	}
 	*/
 
-	runColorpalBeat();
+	switch (effect) {
+		case 0:
+			runColorpalBeat();
+			break;
+		case 1:
+			runBlinkOne();
+			break;
+		case 2:
+			runSolidOne();
+			break;
+		default:
+			Serial.print("Unknown effect selected: "); Serial.println(effect);
+			delay(10);
+	}
+	
+	show_at_max_brightness_for_power(); //FastLED.show();
 
 }
 
@@ -160,13 +187,30 @@ void runColorpalBeat() {
 	uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 	FillLEDsFromPaletteColors(beatA);
 
-	show_at_max_brightness_for_power(); //FastLED.show();
-
 	//nblendPaletteTowardPalette( currentPalette, targetPalette, maxChanges);
 	EVERY_N_MILLISECONDS(5000) {
 		SetupRandomPalette();
 	}
 }
+
+void runBlinkOne() {
+	EVERY_N_MILLISECONDS(500) {
+		if ( leds[0] == CRGB(0,0,0) ) {
+			nextColor = color;
+		} else {
+			nextColor = CRGB::Black;
+		}
+	}
+
+	runFill();
+	leds[0] = nextColor;
+}
+
+void runSolidOne() {
+	runFill();
+	leds[0] = color;
+}
+
 
 
 //UTILITIES FOR EFFECTS
