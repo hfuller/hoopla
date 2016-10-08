@@ -123,7 +123,7 @@ void loop() {
 		//time to do our every-second tasks
 		#ifdef DEBUG
 		double fr = (double)frameCount/((double)(millis()-timer1s)/1000);
-		Serial.print("#FRAME RATE: "); Serial.print(fr);
+		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(fr);
 		uint32_t loadmw = calculate_unscaled_power_mW(leds,NUMPIXELS);
 		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw/5); Serial.print("mA) - ");
 		Serial.print("Wi-Fi: "); Serial.print( (WiFi.status() == WL_CONNECTED) ? "Connected" : "Disconnected");
@@ -132,6 +132,32 @@ void loop() {
 
 		timer1s = millis();
 		frameCount = 0;
+
+	}
+	EVERY_N_MILLISECONDS(5000) {
+
+		//do Wi-Fi stuff
+
+		#ifdef DEBUG
+		if ( WiFi.status() == WL_CONNECTED ) {
+			//we are connected, as a client.
+			Serial.print("[Wi-Fi] CLIENT: "); Serial.print(WiFi.SSID());
+			Serial.print(" as "); Serial.print(WiFi.localIP());
+			Serial.print(" at "); Serial.println(WiFi.RSSI());
+		} else if ( WiFi.status() == WL_IDLE_STATUS ) {
+			Serial.print("[Wi-Fi] Associating to "); Serial.println(WiFi.SSID());
+		} else if ( WiFi.status() == WL_CONNECT_FAILED or WiFi.status() == WL_CONNECTION_LOST ) {
+			Serial.print("[Wi-Fi] Could not associate to "); Serial.println(WiFi.SSID());
+		} else {
+			Serial.println("[Wi-Fi] Unknown connection status...");
+		}
+		#endif /*DEBUG*/
+
+		if ( millis() > 30000 ) {
+			//we've been running 30s
+			Serial.println("[Wi-Fi] Starting soft AP");
+			WiFi.softAP("hoopla","deeznuts");
+		}
 
 	}
 
