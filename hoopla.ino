@@ -41,10 +41,6 @@ void runLeds();
 
 void setup() {
 	
-	#ifdef DEBUG
-	delay(1000); //TODO debug
-	#endif
-
 	Serial.begin(115200);
 	Serial.print("hoopla v"); Serial.println(VERSION);
 
