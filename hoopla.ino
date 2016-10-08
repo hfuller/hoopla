@@ -111,8 +111,7 @@ void setup() {
 	ArduinoOTA.begin();
 
 	color = CRGB::Green; runLeds();
-	Serial.print("Startup complete. IP address: ");
-	Serial.println(WiFi.localIP());
+	Serial.println("Startup complete.");
 }
 
 void loop() {
