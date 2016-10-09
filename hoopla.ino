@@ -52,6 +52,7 @@ void FillLEDsFromPaletteColors(uint8_t colorIndex);
 void SetupRandomPalette();
 void runLeds();
 void handleRoot();
+void handleStyle();
 void handleWifi();
 void handleWifiSave();
 void handleNotFound();
@@ -87,6 +88,7 @@ void setup() {
 	lastWirelessChange = millis();
 	WiFi.mode(WIFI_STA);
 	WiFi.setAutoReconnect(false);
+	WiFi.hostname(name);
 	WiFi.begin();
 
 	Serial.println("[start] Starting DNS");
@@ -94,6 +96,7 @@ void setup() {
 	dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
 	Serial.println("[start] starting http");
+	server.on("/style.css", handleStyle);
 	server.on("/", handleRoot);
 	server.on("/wifi", handleWifi);
 	server.on("/wifisave", handleWifiSave);
@@ -299,25 +302,37 @@ void SetupRandomPalette() {
 
 //HTTP STUFF borrowed from https://github.com/esp8266/Arduino/blob/master/libraries/DNSServer/examples/CaptivePortalAdvanced/CaptivePortalAdvanced.ino
 
+//Boring files
+void handleStyle() {
+	server.send(200, "text/plain","\
+		html {\
+			font-family:sans-serif;\
+		}\
+	");
+}
+
 /** Handle root or redirect to captive portal */
 void handleRoot() {
-  if (captivePortal()) { // If caprive portal redirect instead of displaying the page.
-    return;
-  }
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.sendHeader("Pragma", "no-cache");
-  server.sendHeader("Expires", "-1");
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/html", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
-  server.sendContent(
-    "<html><head></head><body>"
-    "<h1>HELLO WORLD!!</h1>"
-  );
-  server.sendContent(
-    "<p>You may want to <a href='/wifi'>config the wifi connection</a>.</p>"
-    "</body></html>"
-  );
-  server.client().stop(); // Stop is needed because we sent no content length
+	if (captivePortal()) { // If caprive portal redirect instead of displaying the page.
+		return;
+	}
+	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+	server.sendHeader("Pragma", "no-cache");
+	server.sendHeader("Expires", "-1");
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+	server.send(200, "text/html", "\
+		<!DOCTYPE html>\
+		<html>\
+		<head>\
+		<title>hoopla</title>\
+		<link rel=\"stylesheet\" href=\"/style.css\">\
+		</head>\
+		<body>\
+		<h1>HELLO WORLD!!</h1>\
+		<p>You may want to <a href='/wifi'>config the wifi connection</a>.</p>\
+		</body></html>\
+	");
+	//server.client().stop(); // Stop is needed because we sent no content length
 }
 
 /** Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
@@ -392,7 +407,7 @@ void handleWifiSave() {
   Serial.print(" pass: "); Serial.println(passwordTemp);
   doConnect = true;
   WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
-  server.sendHeader("Location", "wifi", true);
+  server.sendHeader("Location", "/setup/saved", true);
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "-1");
