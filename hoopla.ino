@@ -32,6 +32,7 @@ CRGB leds[300];
 
 unsigned long timer1s;
 unsigned long frameCount;
+unsigned long lastWirelessChange;
 
 byte effect = 0;
 CRGB color = CRGB::Teal;
@@ -83,6 +84,7 @@ void setup() {
 	color = CRGB::Orange; runLeds();
 
 	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID());
+	lastWirelessChange = millis();
 	WiFi.mode(WIFI_STA);
 	WiFi.setAutoReconnect(false);
 	WiFi.begin();
@@ -179,26 +181,32 @@ void loop() {
 			Serial.print(" at "); Serial.println(WiFi.RSSI());
 		} else if ( WiFi.status() == WL_IDLE_STATUS ) {
 			Serial.print("[Wi-Fi] Associating to "); Serial.println(WiFi.SSID());
-			if ( millis() > 15000 ) { //We have been trying to associate for far too long.
-				Serial.println("[Wi-Fi] Client giving up");
-				WiFi.disconnect();
-				Serial.println("[Wi-Fi] Starting wireless AP");
-				WiFi.mode(WIFI_AP);
-				WiFi.softAP(name,passwordAP);
-				delay(100); //reliable IP retrieval.
-				Serial.print("[Wi-Fi] AP started. I am "); Serial.println(WiFi.softAPIP());
-			}
 		} else {
 			Serial.print("[Wi-Fi] No association to "); Serial.println(WiFi.SSID());
-			if ( doConnect ) { //we have a pending connect attempt from the config subsystem
-				Serial.println("[Wi-Fi] Trying to associate to AP due to config change");
-				WiFi.disconnect();
-				WiFi.mode(WIFI_STA);
-				WiFi.begin(ssidTemp,passwordTemp);
-				doConnect = false; //shouldn't need this but sometimes we do... if WiFi.status() isn't updated by the underlying libs
-			}
 		}
 		#endif /*DEBUG*/
+
+		if ( doConnect ) { //we have a pending connect attempt from the config subsystem
+			Serial.println("[Wi-Fi] Trying to associate to AP due to config change");
+			isAP = false;
+			WiFi.disconnect();
+			WiFi.mode(WIFI_STA);
+			WiFi.begin(ssidTemp,passwordTemp);
+			doConnect = false; //shouldn't need this but sometimes we do... if WiFi.status() isn't updated by the underlying libs
+			lastWirelessChange = millis();
+		}
+		if ( (millis() - lastWirelessChange) > 15000 && WiFi.status() != WL_CONNECTED && !isAP ) { //We have been trying to associate for far too long.
+			Serial.println("[Wi-Fi] Client giving up");
+			WiFi.disconnect();
+			Serial.println("[Wi-Fi] Starting wireless AP");
+			WiFi.mode(WIFI_AP);
+			WiFi.softAP(name,passwordAP);
+			delay(100); //reliable IP retrieval.
+			Serial.print("[Wi-Fi] AP started. I am "); Serial.println(WiFi.softAPIP());
+			lastWirelessChange = millis();
+			isAP = true;
+		}
+
 
 	}
 
