@@ -43,6 +43,7 @@ uint8_t maxChanges = 24;
 TBlendType currentBlending;
 bool isAP = false;
 bool doConnect = false;
+bool doServiceRestart = false;
 
 void runColorpalBeat();
 void runFill();
@@ -103,17 +104,14 @@ void setup() {
 	server.onNotFound ( handleNotFound );
 	server.begin(); // Web server start
 
+	color = CRGB::Yellow; runLeds();
+	Serial.println("[start] Setting up OTA");
 	// Port defaults to 8266
-	// ArduinoOTA.setPort(8266);
-
+	//ArduinoOTA.setPort(8266);
 	// Hostname defaults to esp8266-[ChipID]
 	ArduinoOTA.setHostname(name);
-
 	// No authentication by default
-	// ArduinoOTA.setPassword((const char *)"123");
-
-	color = CRGB::Yellow; runLeds();
-	Serial.println("Setting up OTA");
+	//ArduinoOTA.setPassword((const char *)"123");
 	ArduinoOTA.onStart([]() {
 		effect = 1;
 		color = CRGB::OrangeRed;
@@ -121,7 +119,7 @@ void setup() {
 	});
 	ArduinoOTA.onEnd([]() {
 		effect = 2;
-		color = CRGB::Lime;
+		color = CRGB::Yellow;
 		runLeds();
 		Serial.println("\nOTA update complete. Reloading");
 	});
@@ -197,19 +195,26 @@ void loop() {
 			WiFi.begin(ssidTemp,passwordTemp);
 			doConnect = false; //shouldn't need this but sometimes we do... if WiFi.status() isn't updated by the underlying libs
 			lastWirelessChange = millis();
+			doServiceRestart = true; //restart OTA
 		}
-		if ( (millis() - lastWirelessChange) > 15000 && WiFi.status() != WL_CONNECTED && !isAP ) { //We have been trying to associate for far too long.
-			Serial.println("[Wi-Fi] Client giving up");
-			WiFi.disconnect();
-			Serial.println("[Wi-Fi] Starting wireless AP");
-			WiFi.mode(WIFI_AP);
-			WiFi.softAP(name,passwordAP);
-			delay(100); //reliable IP retrieval.
-			Serial.print("[Wi-Fi] AP started. I am "); Serial.println(WiFi.softAPIP());
-			lastWirelessChange = millis();
-			isAP = true;
+		if ( (millis() - lastWirelessChange) > 15000 ) {
+			if ( WiFi.status() != WL_CONNECTED && !isAP ) { //We have been trying to associate for far too long.
+				Serial.println("[Wi-Fi] Client giving up");
+				//WiFi.disconnect();
+				Serial.println("[Wi-Fi] Starting wireless AP");
+				WiFi.mode(WIFI_AP);
+				WiFi.softAP(name,passwordAP);
+				delay(100); //reliable IP retrieval.
+				Serial.print("[Wi-Fi] AP started. I am "); Serial.println(WiFi.softAPIP());
+				lastWirelessChange = millis();
+				isAP = true;
+			}
+			if ( doServiceRestart ) {
+				Serial.println("[Wi-Fi] Restarting services due to Wi-Fi state change");
+				ArduinoOTA.begin();
+				doServiceRestart = false;
+			}
 		}
-
 
 	}
 
