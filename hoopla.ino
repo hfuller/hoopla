@@ -6,7 +6,7 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 
-#define VERSION			11
+#define VERSION			13
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -53,6 +53,7 @@ void FillLEDsFromPaletteColors(uint8_t colorIndex);
 void SetupRandomPalette();
 void runLeds();
 void handleRoot();
+void handleEffectSave();
 void handleStyle();
 void handleWifi();
 void handleWifiSave();
@@ -99,8 +100,9 @@ void setup() {
 	Serial.println("[start] starting http");
 	server.on("/style.css", handleStyle);
 	server.on("/", handleRoot);
-	server.on("/wifi", handleWifi);
-	server.on("/wifisave", handleWifiSave);
+	server.on("/effect/save", handleEffectSave);
+	server.on("/setup", handleWifi);
+	server.on("/setup/save", handleWifiSave);
 	server.onNotFound ( handleNotFound );
 	server.begin(); // Web server start
 
@@ -309,7 +311,7 @@ void SetupRandomPalette() {
 
 //Boring files
 void handleStyle() {
-	server.send(200, "text/plain","\
+	server.send(200, "text/css","\
 		html {\
 			font-family:sans-serif;\
 		}\
@@ -334,11 +336,32 @@ void handleRoot() {
 		</head>\
 		<body>\
 		<h1>HELLO WORLD!!</h1>\
-		<p>You may want to <a href='/wifi'>config the wifi connection</a>.</p>\
+		<p>You may want to <a href='/setup'>config the wifi connection</a>.</p>\
+		<form method=\"POST\" action=\"/effect/save\">\
+		<select name=\"e\">\
+		<option value=\"0\">Color Palette Beat</option>\
+		<option value=\"1\">Blink One</option>\
+		<option value=\"2\">Solid One</option>\
+		</select>\
+		<button type=\"submit\">Set</button>\
+		</form>\
 		</body></html>\
 	");
-	//server.client().stop(); // Stop is needed because we sent no content length
+	server.client().stop(); // Stop is needed because we sent no content length
 }
+
+void handleEffectSave() {
+  Serial.print("[httpd] effect save. ");
+  effect = server.arg("e").toInt();
+  Serial.println(effect);
+  server.sendHeader("Location", "/?ok", true);
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "-1");
+  server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
+  server.client().stop(); // Stop is needed because we sent no content length
+}
+
 
 /** Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
 boolean captivePortal() {
@@ -393,7 +416,7 @@ void handleWifi() {
   }
   server.sendContent(
     "</table>"
-    "\r\n<br /><form method='POST' action='wifisave'><h4>Connect to network:</h4>"
+    "\r\n<br /><form method='POST' action='/setup/save'><h4>Connect to network:</h4>"
     "<input type='text' placeholder='network' name='n'/>"
     "<br /><input type='password' placeholder='password' name='p'/>"
     "<br /><input type='submit' value='Connect/Disconnect'/></form>"
@@ -412,7 +435,7 @@ void handleWifiSave() {
   Serial.print(" pass: "); Serial.println(passwordTemp);
   doConnect = true;
   WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
-  server.sendHeader("Location", "/setup/saved", true);
+  server.sendHeader("Location", "/?saved", true);
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "-1");
