@@ -11,7 +11,7 @@
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
 
-#define NUMPIXELS		24					//NOTE: we write 300 pixels in some cases, like when blanking the strip.
+#define NUMPIXELS		48					//NOTE: we write 300 pixels in some cases, like when blanking the strip.
 #define DATA_PIN		0
 #define CLOCK_PIN		2
 #define FRAMERATE		60					//how many frames per second to we ideally want to run
@@ -34,18 +34,34 @@ unsigned long timer1s;
 unsigned long frameCount;
 unsigned long lastWirelessChange;
 
+//EFFECT SHIT
 byte effect = 0;
 CRGB color = CRGB::Teal;
 CRGB nextColor = CRGB::Black;
+//ColorpalBeat
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
 uint8_t maxChanges = 24; 
 TBlendType currentBlending;
+//Confetti
+uint8_t  thisfade = 16;                                        // How quickly does it fade? Lower = slower fade rate.
+int       thishue = 50;                                       // Starting hue.
+uint8_t   thisinc = 1;                                        // Incremental value for rotating hues
+uint8_t   thissat = 100;                                      // The saturation, where 255 = brilliant colours.
+uint8_t   thisbri = 255;                                      // Brightness of a sequence. Remember, max_bright is the overall limiter.
+int       huediff = 256;                                      // Range of random #'s to use for hue
+//DotBeat
+uint8_t   count =   0;                                        // Count up to 255 and then reverts to 0
+uint8_t fadeval = 224;                                        // Trail behind the LED's. Lower => faster fade.
+uint8_t bpm = 30;
+
 bool isAP = false;
 bool doConnect = false;
 bool doServiceRestart = false;
 
 void runColorpalBeat();
+void runConfetti();
+void runDotBeat();
 void runFill();
 void runSolidOne();
 void runBlinkOne();
@@ -55,8 +71,8 @@ void runLeds();
 void handleRoot();
 void handleEffectSave();
 void handleStyle();
-void handleWifi();
-void handleWifiSave();
+void handleSetup();
+void handleSetupSave();
 void handleNotFound();
 boolean captivePortal();
 boolean isIp(String str);
@@ -101,8 +117,8 @@ void setup() {
 	server.on("/style.css", handleStyle);
 	server.on("/", handleRoot);
 	server.on("/effect/save", handleEffectSave);
-	server.on("/setup", handleWifi);
-	server.on("/setup/save", handleWifiSave);
+	server.on("/setup", handleSetup);
+	server.on("/setup/save", handleSetupSave);
 	server.onNotFound ( handleNotFound );
 	server.begin(); // Web server start
 
@@ -202,7 +218,7 @@ void loop() {
 		if ( (millis() - lastWirelessChange) > 15000 ) {
 			if ( WiFi.status() != WL_CONNECTED && !isAP ) { //We have been trying to associate for far too long.
 				Serial.println("[Wi-Fi] Client giving up");
-				//WiFi.disconnect();
+				//WiFi.disconnect(); //Don't do this or it will clear the ssid/pass in nvram!!!!!
 				Serial.println("[Wi-Fi] Starting wireless AP");
 				WiFi.mode(WIFI_AP);
 				WiFi.softAP(name,passwordAP);
@@ -246,6 +262,12 @@ void runLeds() {
 		case 2:
 			runSolidOne();
 			break;
+		case 3:
+			runConfetti();
+			break;
+		case 4:
+			runDotBeat();
+			break;
 		default:
 			Serial.print("[blink] Unknown effect selected: "); Serial.println(effect);
 			delay(10);
@@ -271,6 +293,36 @@ void runColorpalBeat() {
 	EVERY_N_MILLISECONDS(5000) {
 		SetupRandomPalette();
 	}
+}
+
+void runConfetti() {
+	uint8_t secondHand = (millis() / 1000) % 15;                // IMPORTANT!!! Change '15' to a different value to change duration of the loop.
+	static uint8_t lastSecond = 99;                             // Static variable, means it's only defined once. This is our 'debounce' variable.
+	if (lastSecond != secondHand) {                             // Debounce to make sure we're not repeating an assignment.
+		lastSecond = secondHand;
+		switch(secondHand) {
+			case  0: thisinc=1; thishue=192; thissat=255; thisfade=2; huediff=256; break;  // You can change values here, one at a time , or altogether.
+			case  5: thisinc=2; thishue=128; thisfade=8; huediff=64; break;
+			case 10: thisinc=1; thishue=random16(255); thisfade=1; huediff=16; break;      // Only gets called once, and not continuously for the next several seconds. Therefore, no rainbows.
+			case 15: break;                                                                // Here's the matching 15 for the other one.
+		}
+	}
+
+	fadeToBlackBy(leds, NUMPIXELS, thisfade);                    // Low values = slower fade.
+	int pos = random16(NUMPIXELS);                               // Pick an LED at random.
+	leds[pos] += CHSV((thishue + random16(huediff))/4 , thissat, thisbri);  // I use 12 bits for hue so that the hue increment isn't too quick.
+	thishue = thishue + thisinc;                                // It increments here.
+}
+
+void runDotBeat() {
+	uint8_t inner = beatsin8(bpm, NUMPIXELS/4, NUMPIXELS/4*3);
+	uint8_t outer = beatsin8(bpm, 0, NUMPIXELS-1);
+	uint8_t middle = beatsin8(bpm, NUMPIXELS/3, NUMPIXELS/3*2);
+
+	//leds[middle] = CRGB::Purple; leds[inner] = CRGB::Blue; leds[outer] = CRGB::Aqua;
+	leds[middle] = CRGB::Aqua; leds[inner] = CRGB::Blue; leds[outer] = CRGB::Purple;
+
+	nscale8(leds,NUMPIXELS,fadeval);                             // Fade the entire array. Or for just a few LED's, use  nscale8(&leds[2], 5, fadeval);
 }
 
 void runBlinkOne() {
@@ -308,6 +360,21 @@ void SetupRandomPalette() {
 
 
 //HTTP STUFF borrowed from https://github.com/esp8266/Arduino/blob/master/libraries/DNSServer/examples/CaptivePortalAdvanced/CaptivePortalAdvanced.ino
+const char * header = "\
+<!DOCTYPE html>\
+<html>\
+<head>\
+<title>hoopla</title>\
+<link rel='stylesheet' href='/style.css'>\
+<meta name='viewport' content='width=device-width, initial-scale=1'>\
+</head>\
+<body>\
+<div id='top'>\
+	<span id='title'>hoopla</span>\
+	<a href='/'>Controls</a>\
+	<a href='/setup'>Setup</a>\
+</div>\
+";
 
 //Boring files
 void handleStyle() {
@@ -327,25 +394,18 @@ void handleRoot() {
 	server.sendHeader("Pragma", "no-cache");
 	server.sendHeader("Expires", "-1");
 	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-	server.send(200, "text/html", "\
-		<!DOCTYPE html>\
-		<html>\
-		<head>\
-		<title>hoopla</title>\
-		<link rel=\"stylesheet\" href=\"/style.css\">\
-		</head>\
-		<body>\
-		<h1>HELLO WORLD!!</h1>\
-		<p>You may want to <a href='/setup'>config the wifi connection</a>.</p>\
-		<form method=\"POST\" action=\"/effect/save\">\
-		<select name=\"e\">\
-		<option value=\"0\">Color Palette Beat</option>\
-		<option value=\"1\">Blink One</option>\
-		<option value=\"2\">Solid One</option>\
+	server.send(200, "text/html", header);
+	server.sendContent("\
+		<form method='POST' action='/effect/save'>\
+		<select name='e'>\
+		<option value='0'>Color Palette Beat</option>\
+		<option value='4'>Dot Beat</option>\
+		<option value='3'>Confetti</option>\
+		<option value='1'>Blink One</option>\
+		<option value='2'>Solid One</option>\
 		</select>\
-		<button type=\"submit\">Set</button>\
+		<button type='submit'>Set</button>\
 		</form>\
-		</body></html>\
 	");
 	server.client().stop(); // Stop is needed because we sent no content length
 }
@@ -376,58 +436,39 @@ boolean captivePortal() {
 }
 
 /** Wifi config page handler */
-void handleWifi() {
+void handleSetup() {
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "-1");
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/html", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
-  server.sendContent(
-    "<html><head></head><body>"
-    "<h1>Wifi config</h1>"
-  );
-  server.sendContent(
-    "\r\n<br />"
-    "<table><tr><th align='left'>SoftAP config</th></tr>"
-  );
-  server.sendContent(String() + "<tr><td>SSID " + String(name) + "</td></tr>");
-  server.sendContent(String() + "<tr><td>IP " + toStringIp(WiFi.softAPIP()) + "</td></tr>");
-  server.sendContent(
-    "</table>"
-    "\r\n<br />"
-    "<table><tr><th align='left'>WLAN config</th></tr>"
-  );
-  server.sendContent(String() + "<tr><td>SSID " + String(WiFi.SSID()) + "</td></tr>");
-  server.sendContent(String() + "<tr><td>IP " + toStringIp(WiFi.localIP()) + "</td></tr>");
-  server.sendContent(
-    "</table>"
-    "\r\n<br />"
-    "<table><tr><th align='left'>WLAN list (refresh if any missing)</th></tr>"
-  );
+  server.send(200, "text/html", header); 
+  server.sendContent("\
+		<h1>Setup</h1>\
+		<h4>Nearby networks</h4>\
+		<table>\
+		<tr><th>Name</th><th>Security</th><th>Signal</th></tr>\
+  ");
   Serial.println("[httpd] scan start");
   int n = WiFi.scanNetworks();
   Serial.println("[httpd] scan done");
-  if (n > 0) {
-    for (int i = 0; i < n; i++) {
-      server.sendContent(String() + "\r\n<tr><td>SSID " + WiFi.SSID(i) + String((WiFi.encryptionType(i) == ENC_TYPE_NONE)?" ":" *") + " (" + WiFi.RSSI(i) + ")</td></tr>");
-    }
-  } else {
-    server.sendContent(String() + "<tr><td>No WLAN found</td></tr>");
+  for (int i = 0; i < n; i++) {
+    server.sendContent(String() + "\r\n<tr><td>" + WiFi.SSID(i) + "</td><td>" + String((WiFi.encryptionType(i) == ENC_TYPE_NONE)?"Open":"Encrypted") + "</td><td>" + WiFi.RSSI(i) + "dBm</td></tr>");
   }
-  server.sendContent(
-    "</table>"
-    "\r\n<br /><form method='POST' action='/setup/save'><h4>Connect to network:</h4>"
-    "<input type='text' placeholder='network' name='n'/>"
-    "<br /><input type='password' placeholder='password' name='p'/>"
-    "<br /><input type='submit' value='Connect/Disconnect'/></form>"
-    "<p>You may want to <a href='/'>return to the home page</a>.</p>"
-    "</body></html>"
-  );
+  //server.sendContent(String() + "<tr><td>SSID " + String(WiFi.SSID()) + "</td></tr>");
+  server.sendContent(String() + "\
+		</table>\
+		<h4>Connect to a network</h4>\
+		<form method='POST' action='/setup/save'>\
+			<input type='text' placeholder='network' value='" + String(WiFi.SSID()) + "' name='n'>\
+			<input type='password' placeholder='password' value='" + String(WiFi.psk()) + "' name='p'>\
+			<button type='submit'>Save and Connect</button>\
+		</form>\
+  ");
   server.client().stop(); // Stop is needed because we sent no content length
 }
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
-void handleWifiSave() {
+void handleSetupSave() {
   Serial.print("[httpd]  wifi save. ");
   server.arg("n").toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
   server.arg("p").toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
