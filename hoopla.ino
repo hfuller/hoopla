@@ -38,7 +38,7 @@ unsigned long lastWirelessChange;
 byte effect = 0;
 CRGB color = CRGB::Teal;
 CRGB nextColor = CRGB::Black;
-//ColorpalBeat
+//Colorpal
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
 uint8_t maxChanges = 24; 
@@ -54,14 +54,38 @@ int       huediff = 256;                                      // Range of random
 uint8_t   count =   0;                                        // Count up to 255 and then reverts to 0
 uint8_t fadeval = 224;                                        // Trail behind the LED's. Lower => faster fade.
 uint8_t bpm = 30;
+//EaseMe
+bool rev= false;
+//FastCirc
+int thiscount = 0;
+int thisdir = 1;
+int thisgap = 8;
+//Juggle
+uint8_t    numdots =   4;                                     // Number of dots in use.
+uint8_t   faderate =   2;                                     // How long should the trails be. Very low value = longer trails.
+uint8_t     hueinc =  16;                                     // Incremental change in hue between each dot.
+uint8_t     curhue =   0;                                     // The current hue
+uint8_t   basebeat =   5;                                     // Higher = faster movement.
+//Lightning
+uint8_t frequency = 50;                                       // controls the interval between strikes
+uint8_t flashes = 8;                                          //the upper limit of flashes per strike
+unsigned int dimmer = 1;
+uint8_t ledstart;                                             // Starting location of a flash
+uint8_t ledlen;                                               // Length of a flash
+
 
 bool isAP = false;
 bool doConnect = false;
 bool doServiceRestart = false;
 
-void runColorpalBeat();
+void runColorpal();
 void runConfetti();
 void runDotBeat();
+void runEaseMe();
+void runFastCirc();
+void runRotatingRainbow();
+void runJuggle();
+void runLightning();
 void runFill();
 void runSolidOne();
 void runBlinkOne();
@@ -95,13 +119,13 @@ void setup() {
 	leds[0] = CRGB::Red; FastLED.show();
 
 	Serial.println("[start] Starting effects");
-	currentPalette = RainbowColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
-	targetPalette = RainbowColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
-	currentBlending = LINEARBLEND;
 	effect = 2; //solid for status indication
+	//Colorpal
+	currentPalette = LavaColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	targetPalette = LavaColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	currentBlending = LINEARBLEND;
 
 	color = CRGB::Orange; runLeds();
-
 	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID());
 	lastWirelessChange = millis();
 	WiFi.mode(WIFI_STA);
@@ -254,7 +278,7 @@ void runLeds() {
 
 	switch (effect) {
 		case 0:
-			runColorpalBeat();
+			runColorpal();
 			break;
 		case 1:
 			runBlinkOne();
@@ -262,11 +286,30 @@ void runLeds() {
 		case 2:
 			runSolidOne();
 			break;
-		case 3:
+		case 7:
+		case 8:
+		case 9:
 			runConfetti();
 			break;
 		case 4:
 			runDotBeat();
+			break;
+		case 5:
+			runEaseMe();
+			break;
+		case 6:
+			runFastCirc();
+			break;
+		case 10:
+			runRotatingRainbow();
+			break;
+		case 11:
+		case 12:
+		case 13:
+			runJuggle();
+			break;
+		case 14:
+			runLightning();
 			break;
 		default:
 			Serial.print("[blink] Unknown effect selected: "); Serial.println(effect);
@@ -285,7 +328,7 @@ void runFill() {
 	}
 }
 	
-void runColorpalBeat() {
+void runColorpal() {
 	uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 	FillLEDsFromPaletteColors(beatA);
 
@@ -296,15 +339,11 @@ void runColorpalBeat() {
 }
 
 void runConfetti() {
-	uint8_t secondHand = (millis() / 1000) % 15;                // IMPORTANT!!! Change '15' to a different value to change duration of the loop.
-	static uint8_t lastSecond = 99;                             // Static variable, means it's only defined once. This is our 'debounce' variable.
-	if (lastSecond != secondHand) {                             // Debounce to make sure we're not repeating an assignment.
-		lastSecond = secondHand;
-		switch(secondHand) {
-			case  0: thisinc=1; thishue=192; thissat=255; thisfade=2; huediff=256; break;  // You can change values here, one at a time , or altogether.
-			case  5: thisinc=2; thishue=128; thisfade=8; huediff=64; break;
-			case 10: thisinc=1; thishue=random16(255); thisfade=1; huediff=16; break;      // Only gets called once, and not continuously for the next several seconds. Therefore, no rainbows.
-			case 15: break;                                                                // Here's the matching 15 for the other one.
+	EVERY_N_MILLISECONDS(5000) {
+		switch(effect) {
+			case 7: thisinc=1; thishue=192; thissat=255; thisfade=16; huediff=256; break;  // You can change values here, one at a time , or altogether.
+			case 8: thisinc=2; thishue=128; thisfade=8; huediff=64; break;
+			case 9: thisinc=1; thishue=random16(255); thisfade=4; huediff=16; break;      // Only gets called once, and not continuously for the next several seconds. Therefore, no rainbows.
 		}
 	}
 
@@ -323,6 +362,77 @@ void runDotBeat() {
 	leds[middle] = CRGB::Aqua; leds[inner] = CRGB::Blue; leds[outer] = CRGB::Purple;
 
 	nscale8(leds,NUMPIXELS,fadeval);                             // Fade the entire array. Or for just a few LED's, use  nscale8(&leds[2], 5, fadeval);
+}
+
+void runFastCirc() {
+	EVERY_N_MILLISECONDS(50) {
+		thiscount = (thiscount + thisdir)%thisgap;
+		for ( int i=thiscount; i<NUMPIXELS; i+=thisgap ) {
+			leds[i] = color;
+		}
+	}
+	fadeToBlackBy(leds, NUMPIXELS, 24);
+}
+
+void runEaseMe() {
+	static uint8_t easeOutVal = 0;
+	static uint8_t easeInVal  = 0;
+	static uint8_t lerpVal    = 0;
+
+	easeOutVal = ease8InOutQuad(easeInVal);
+	if ( rev ) {
+		easeInVal -= 3;
+	} else {
+		easeInVal += 3;
+	}
+	if ( easeInVal > 250 ) {
+		rev = true;
+	} else if ( easeInVal < 5 ) {
+		rev = false;
+	}
+
+	lerpVal = lerp8by8(0, NUMPIXELS, easeOutVal);
+
+	for ( int i = lerpVal; i < NUMPIXELS; i += 8 ) {
+		leds[i] = color;
+	}
+	fadeToBlackBy(leds, NUMPIXELS, 32);                     // 8 bit, 1 = slow, 255 = fast
+}
+
+void runRotatingRainbow() {
+	fill_rainbow(leds, NUMPIXELS, count, 5);
+	count += 2;
+}
+
+void runJuggle() {
+	switch(effect) {
+			case 11: numdots = 1; basebeat = 20; hueinc = 16; faderate = 2; thishue = 0; break;                  // You can change values here, one at a time , or altogether.
+			case 12: numdots = 4; basebeat = 10; hueinc = 16; faderate = 8; thishue = 128; break;
+			case 13: numdots = 8; basebeat =  3; hueinc =  0; faderate = 8; thishue=random8(); break;           // Only gets called once, and not continuously for the next several seconds. Therefore, no rainbows.
+	}
+	curhue = thishue;                                           // Reset the hue values.
+	fadeToBlackBy(leds, NUMPIXELS, faderate);
+	for( int i = 0; i < numdots; i++) {
+		leds[beatsin16(basebeat+i+numdots,0,NUMPIXELS)] += CHSV(curhue, thissat, thisbri);   //beat16 is a FastLED 3.1 function
+		curhue += hueinc;
+	}
+}
+
+void runLightning() {
+	ledstart = random8(NUM_LEDS);           // Determine starting location of flash
+	ledlen = random8(NUM_LEDS-ledstart);    // Determine length of flash (not to go beyond NUM_LEDS-1)
+	for (int flashCounter = 0; flashCounter < random8(3,flashes); flashCounter++) {
+		if(flashCounter == 0) dimmer = 5;     // the brightness of the leader is scaled down by a factor of 5
+		else dimmer = random8(1,3);           // return strokes are brighter than the leader
+		fill_solid(leds+ledstart,ledlen,CHSV(255, 0, 255/dimmer));
+		show_at_max_brightness_for_power();                       // Show a section of LED's
+		delay(random8(4,10));                 // each flash only lasts 4-10 milliseconds
+		fill_solid(leds+ledstart,ledlen,CHSV(255,0,0));   // Clear the section of LED's
+		show_at_max_brightness_for_power();     
+		if (flashCounter == 0) delay (150);   // longer delay until next flash after the leader
+		delay(50+random8(100));               // shorter delay between strokes  
+	} // for()
+	delay(random8(frequency)*100);          // delay between strikes
 }
 
 void runBlinkOne() {
@@ -366,7 +476,7 @@ const char * header = "\
 <head>\
 <title>hoopla</title>\
 <link rel='stylesheet' href='/style.css'>\
-<meta name='viewport' content='width=device-width, initial-scale=1'>\
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />\
 </head>\
 <body>\
 <div id='top'>\
@@ -381,6 +491,25 @@ void handleStyle() {
 	server.send(200, "text/css","\
 		html {\
 			font-family:sans-serif;\
+			background-color:black;\
+			color: #e0e0e0;\
+		}\
+		div {\
+			background-color: #202020;\
+		}\
+		h1,h2,h3,h4,h5 {\
+			color: #e02020;\
+		}\
+		a {\
+			color: #5050f0;\
+		}\
+		form * {\
+			display:block;\
+			border: 1px solid #000;\
+			font-size: 14px;\
+			color: #fff;\
+			background: #444;\
+			padding: 5px;\
 		}\
 	");
 }
@@ -396,16 +525,33 @@ void handleRoot() {
 	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 	server.send(200, "text/html", header);
 	server.sendContent("\
+		<h1>Controls</h1>\
 		<form method='POST' action='/effect/save'>\
-		<select name='e'>\
-		<option value='0'>Color Palette Beat</option>\
+		<select name='e' id='e'>\
+		<option value='0'>Palette</option>\
 		<option value='4'>Dot Beat</option>\
-		<option value='3'>Confetti</option>\
+		<option value='5'>Ease Me</option>\
+		<option value='6'>FastCirc</option>\
+		<option value='7'>Confetti 1</option>\
+		<option value='8'>Confetti 2</option>\
+		<option value='9'>Confetti 3</option>\
+		<option value='10'>Rotating Rainbow</option>\
+		<option value='11'>Juggle 1</option>\
+		<option value='12'>Juggle 2</option>\
+		<option value='13'>Juggle 3</option>\
+		<option value='14'>Lightning</option>\
 		<option value='1'>Blink One</option>\
 		<option value='2'>Solid One</option>\
 		</select>\
 		<button type='submit'>Set</button>\
 		</form>\
+		<script>\
+		\r\ndocument.getElementById('e').addEventListener('change', function() {\
+		\r\n	var xhr = new XMLHttpRequest();\
+		\r\n	xhr.open('GET','/effect/save?e=1'); //' + this.value);\
+		\r\n	xhr.send();\
+		\r\n});\
+		</script>\
 	");
 	server.client().stop(); // Stop is needed because we sent no content length
 }
