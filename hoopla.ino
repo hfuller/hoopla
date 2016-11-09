@@ -77,6 +77,7 @@ uint8_t ledlen;                                               // Length of a fla
 bool isAP = false;
 bool doConnect = false;
 bool doServiceRestart = false;
+bool doEffects = true;
 
 void runColorpal();
 void runConfetti();
@@ -93,6 +94,8 @@ void FillLEDsFromPaletteColors(uint8_t colorIndex);
 void SetupRandomPalette();
 void runLeds();
 void handleRoot();
+void handleDebug();
+void handleDebugReset();
 void handleEffectSave();
 void handleStyle();
 void handleSetup();
@@ -143,6 +146,8 @@ void setup() {
 	server.on("/effect/save", handleEffectSave);
 	server.on("/setup", handleSetup);
 	server.on("/setup/save", handleSetupSave);
+	server.on("/debug", handleDebug);
+	server.on("/debug/reset", handleDebugReset);
 	server.onNotFound ( handleNotFound );
 	server.begin(); // Web server start
 
@@ -211,6 +216,10 @@ void loop() {
 		timer1s = millis();
 		frameCount = 0;
 
+		if ( doEffects && effect <= 2 ) {
+			effect = 6;
+		}
+
 	}
 	EVERY_N_MILLISECONDS(5000) {
 
@@ -277,7 +286,7 @@ void runLeds() {
 	*/
 
 	switch (effect) {
-		case 0:
+		case 15:
 			runColorpal();
 			break;
 		case 1:
@@ -419,8 +428,8 @@ void runJuggle() {
 }
 
 void runLightning() {
-	ledstart = random8(NUM_LEDS);           // Determine starting location of flash
-	ledlen = random8(NUM_LEDS-ledstart);    // Determine length of flash (not to go beyond NUM_LEDS-1)
+	ledstart = random8(NUMPIXELS);           // Determine starting location of flash
+	ledlen = random8(NUMPIXELS-ledstart);    // Determine length of flash (not to go beyond NUMPIXELS-1)
 	for (int flashCounter = 0; flashCounter < random8(3,flashes); flashCounter++) {
 		if(flashCounter == 0) dimmer = 5;     // the brightness of the leader is scaled down by a factor of 5
 		else dimmer = random8(1,3);           // return strokes are brighter than the leader
@@ -483,6 +492,7 @@ const char * header = "\
 	<span id='title'>hoopla</span>\
 	<a href='/'>Controls</a>\
 	<a href='/setup'>Setup</a>\
+	<a href='/debug'>Debug</a>\
 </div>\
 ";
 
@@ -528,7 +538,7 @@ void handleRoot() {
 		<h1>Controls</h1>\
 		<form method='POST' action='/effect/save'>\
 		<select name='e' id='e'>\
-		<option value='0'>Palette</option>\
+		<option value='15'>Palette</option>\
 		<option value='4'>Dot Beat</option>\
 		<option value='5'>Ease Me</option>\
 		<option value='6'>FastCirc</option>\
@@ -548,12 +558,37 @@ void handleRoot() {
 		<script>\
 		\r\ndocument.getElementById('e').addEventListener('change', function() {\
 		\r\n	var xhr = new XMLHttpRequest();\
-		\r\n	xhr.open('GET','/effect/save?e=1'); //' + this.value);\
+		\r\n	xhr.open('POST','/effect/save', true);\
+		\r\n	xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');\
+		\r\n	xhr.send('e=' + this.value);\
 		\r\n	xhr.send();\
 		\r\n});\
 		</script>\
 	");
 	server.client().stop(); // Stop is needed because we sent no content length
+}
+
+void handleDebug() {
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+	server.send(200, "text/html", header);
+	server.sendContent("\
+		<h1>Debug</h1>\
+		<form method='POST' action='/debug/reset'>\
+		<button type='submit'>Restart</button>\
+		</form>\
+	");
+	server.client().stop();
+}
+void handleDebugReset() {
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+	server.send(200, "text/html", header);
+	server.sendContent("\
+		<h1>Debug</h1>\
+		OK. Restarting. (Give it up to 30 seconds.)\
+	");
+	server.client().stop();
+	delay(500);
+	ESP.reset();
 }
 
 void handleEffectSave() {
