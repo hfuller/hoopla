@@ -6,7 +6,7 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 
-#define VERSION			14
+#define VERSION			15
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -99,6 +99,7 @@ void runLeds();
 void handleRoot();
 void handleDebug();
 void handleDebugReset();
+void handleDebugDisconnect();
 void handleEffectSave();
 void handleStyle();
 void handleSetup();
@@ -151,6 +152,7 @@ void setup() {
 	server.on("/setup/save", handleSetupSave);
 	server.on("/debug", handleDebug);
 	server.on("/debug/reset", handleDebugReset);
+	server.on("/debug/disconnect", handleDebugDisconnect);
 	server.onNotFound ( handleNotFound );
 	server.begin(); // Web server start
 
@@ -597,6 +599,9 @@ void handleDebug() {
 		<form method='POST' action='/debug/reset'>\
 		<button type='submit'>Restart</button>\
 		</form>\
+		<form method='POST' action='/debug/disconnect'>\
+		<button type='submit'>Forget connection info</button>\
+		</form>\
 	");
 	server.client().stop();
 }
@@ -610,6 +615,17 @@ void handleDebugReset() {
 	server.client().stop();
 	delay(500);
 	ESP.reset();
+}
+void handleDebugDisconnect() {
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+	server.send(200, "text/html", header);
+	server.sendContent("\
+		<h1>Debug</h1>\
+		OK. Disconnecting.\
+	");
+	server.client().stop();
+	delay(500);
+	WiFi.disconnect();
 }
 
 void handleEffectSave() {
