@@ -6,7 +6,7 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 
-#define VERSION			13
+#define VERSION			14
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -69,6 +69,9 @@ uint8_t   basebeat =   5;                                     // Higher = faster
 //Lightning
 uint8_t frequency = 50;                                       // controls the interval between strikes
 uint8_t flashes = 8;                                          //the upper limit of flashes per strike
+uint8_t flashCounter = 0;                                     //how many flashes have we done already, during this cycle?
+unsigned long lastFlashTime = 0;                              //when did we last flash?
+unsigned long nextFlashDelay = 0;                             //how long do we wait since the last flash before flashing again?
 unsigned int dimmer = 1;
 uint8_t ledstart;                                             // Starting location of a flash
 uint8_t ledlen;                                               // Length of a flash
@@ -428,20 +431,38 @@ void runJuggle() {
 }
 
 void runLightning() {
-	ledstart = random16(NUMPIXELS);           // Determine starting location of flash
-	ledlen = random16(NUMPIXELS-ledstart);    // Determine length of flash (not to go beyond NUMPIXELS-1)
-	for (int flashCounter = 0; flashCounter < random8(3,flashes); flashCounter++) {
-		if(flashCounter == 0) dimmer = 5;     // the brightness of the leader is scaled down by a factor of 5
-		else dimmer = random8(1,3);           // return strokes are brighter than the leader
-		fill_solid(leds+ledstart,ledlen,CHSV(255, 0, 255/dimmer));
-		show_at_max_brightness_for_power();                       // Show a section of LED's
-		delay(random8(4,10));                 // each flash only lasts 4-10 milliseconds
-		fill_solid(leds+ledstart,ledlen,CHSV(255,0,0));   // Clear the section of LED's
-		show_at_max_brightness_for_power();     
-		if (flashCounter == 0) delay (150);   // longer delay until next flash after the leader
-		delay(50+random8(100));               // shorter delay between strokes  
-	} // for()
-	delay(random8(frequency)*100);          // delay between strikes
+	//Serial.print("[ltnng] entered. millis()="); Serial.print(millis()); Serial.print(" lastFlashTime="); Serial.print(lastFlashTime); Serial.print(" nextFlashDelay="); Serial.println(nextFlashDelay);
+	if ( (millis() - lastFlashTime) > nextFlashDelay ) { //time to flash
+		Serial.print("[ltnng] flashCounter: ");
+		Serial.println(flashCounter);
+		nextFlashDelay = 0;
+		if ( flashCounter == 0 ) {
+			//Serial.println("[ltnng] New strike");
+			//new strike. init our values for this set of flashes
+			ledstart = random16(NUMPIXELS);           // Determine starting location of flash
+			ledlen = random16(NUMPIXELS-ledstart);    // Determine length of flash (not to go beyond NUMPIXELS-1)
+			dimmer = 5;
+			nextFlashDelay += 150;   // longer delay until next flash after the leader
+		} else {
+			dimmer = random8(1,3);           // return strokes are brighter than the leader
+		}
+
+		if ( flashCounter < random8(3,flashes) ) {
+			//Serial.println("[ltnng] Time to flash");
+			flashCounter++;
+			fill_solid(leds+ledstart,ledlen,CHSV(255, 0, 255/dimmer));
+			show_at_max_brightness_for_power();                       // Show a section of LED's
+			delay(random8(4,10));                 // each flash only lasts 4-10 milliseconds. We will use delay() because the timing has to be tight. still will run shorter than 10ms.
+			fill_solid(leds+ledstart,ledlen,CHSV(255,0,0));   // Clear the section of LED's
+			show_at_max_brightness_for_power();     
+			nextFlashDelay += 50+random8(100);               // shorter delay between strokes  
+		} else {
+			Serial.println("[ltnng] Strike complete");
+			flashCounter = 0;
+			nextFlashDelay = random8(frequency)*100;          // delay between strikes
+		}
+		lastFlashTime = millis();
+	} 
 }
 
 void runBlinkOne() {
