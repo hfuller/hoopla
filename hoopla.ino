@@ -428,8 +428,8 @@ void runJuggle() {
 }
 
 void runLightning() {
-	ledstart = random8(NUMPIXELS);           // Determine starting location of flash
-	ledlen = random8(NUMPIXELS-ledstart);    // Determine length of flash (not to go beyond NUMPIXELS-1)
+	ledstart = random16(NUMPIXELS);           // Determine starting location of flash
+	ledlen = random16(NUMPIXELS-ledstart);    // Determine length of flash (not to go beyond NUMPIXELS-1)
 	for (int flashCounter = 0; flashCounter < random8(3,flashes); flashCounter++) {
 		if(flashCounter == 0) dimmer = 5;     // the brightness of the leader is scaled down by a factor of 5
 		else dimmer = random8(1,3);           // return strokes are brighter than the leader
