@@ -253,7 +253,14 @@ void loop() {
 			lastWirelessChange = millis();
 			doServiceRestart = true; //restart OTA
 		}
-		if ( (millis() - lastWirelessChange) > 15000 ) {
+		if ( (millis() - lastWirelessChange) > 60000 ) {
+			//We tried to associate to wireless over 60 seconds ago.
+			if ( WiFi.status() != WL_CONNECTED && !isAP ) { //We were connected for at least a minute, but we must have lost connection.
+				lastWirelessChange = millis();
+				WiFi.reconnect();
+			}
+		} else if ( (millis() - lastWirelessChange) > 15000 ) {
+			//We tried to associate to wireless somewhere between 15 and 60 seconds ago.
 			if ( WiFi.status() != WL_CONNECTED && !isAP ) { //We have been trying to associate for far too long.
 				Serial.println("[Wi-Fi] Client giving up");
 				//WiFi.disconnect(); //Don't do this or it will clear the ssid/pass in nvram!!!!!
