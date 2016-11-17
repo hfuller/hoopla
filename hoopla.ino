@@ -6,14 +6,13 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 
-#define VERSION			15
+#include "config.h"
+
+#define VERSION			17
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
 
-#define NUMPIXELS		48					//NOTE: we write 300 pixels in some cases, like when blanking the strip.
-#define DATA_PIN		0
-#define CLOCK_PIN		2
 #define FRAMERATE		60					//how many frames per second to we ideally want to run
 #define MAX_LOAD_MA		400					//how many mA are we allowed to draw, at 5 volts
 
@@ -21,14 +20,14 @@ const char* ssid = "";
 const char* password = "";
 char ssidTemp[32] = "";
 char passwordTemp[32] = "";
-const char* name = "jennifers-hoop";
-const char* passwordAP = "deeznuts";
+const char* name = NAME;
+const char* passwordAP = PSK;
 
 const byte DNS_PORT = 53;
 DNSServer dnsServer;
 ESP8266WebServer server(80);
 
-CRGB leds[300];
+CRGB leds[300];					//NOTE: we write 300 pixels in some cases, like when blanking the strip.
 
 unsigned long timer1s;
 unsigned long frameCount;
@@ -116,7 +115,7 @@ void setup() {
 	Serial.print("[start] hoopla v"); Serial.println(VERSION);
 
 	Serial.println("[start] Starting LEDs");
-	FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, BGR>(leds, 300);
+	FastLED.addLeds<LED_CONFIG>(leds, 300);
 	FastLED.setMaxPowerInVoltsAndMilliamps(5,MAX_LOAD_MA); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
 	FastLED.setMaxRefreshRate(FRAMERATE);
