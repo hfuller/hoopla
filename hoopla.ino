@@ -5,10 +5,11 @@
 #include "FastLED.h"
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
 
 #include "config.h"
 
-#define VERSION			17
+#define VERSION			18
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -26,6 +27,7 @@ const char* passwordAP = PSK;
 const byte DNS_PORT = 53;
 DNSServer dnsServer;
 ESP8266WebServer server(80);
+ESP8266HTTPUpdateServer httpUpdater;
 
 CRGB leds[300];					//NOTE: we write 300 pixels in some cases, like when blanking the strip.
 
@@ -142,6 +144,9 @@ void setup() {
 	Serial.println("[start] Starting DNS");
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
 	dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+
+	Serial.println("[start] Setting up http firmware uploads");
+	httpUpdater.setup(&server);
 
 	Serial.println("[start] starting http");
 	server.on("/style.css", handleStyle);
