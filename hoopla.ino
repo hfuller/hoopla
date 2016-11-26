@@ -170,7 +170,7 @@ void setup() {
 		HTTPUpload& upload = server.upload();
 		if(upload.status == UPLOAD_FILE_START){
 			Serial.printf("Starting HTTP update from %s - other functions will be suspended.\n", upload.filename.c_str());
-			effect = 1;
+			effect = 2;
 			color = CRGB::OrangeRed;
 
 			doServiceRestart = true;
@@ -179,7 +179,6 @@ void setup() {
 			uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 			if(!Update.begin(maxSketchSpace)){//start with max available size
 				//if(DEBUG) Update.printError(Serial);
-				effect = 2;
 				color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_WRITE){
@@ -193,23 +192,19 @@ void setup() {
 
 			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
 				//if(DEBUG) Update.printError(Serial);
-				effect = 2;
 				color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_END){
 			if(Update.end(true)){ //true to set the size to the current progress
 				Serial.printf("Update Success: %u\n", upload.totalSize);
-				effect = 2;
 				color = CRGB::Green;
 			} else {
 				//if(DEBUG) Update.printError(Serial);
-				effect = 2;
 				color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_ABORTED){
 			Update.end();
 			Serial.println("Update was aborted");
-			effect = 2;
 			color = CRGB::Red;
 		}
 		delay(0);
@@ -292,7 +287,7 @@ void loop() {
 		timer1s = millis();
 		frameCount = 0;
 
-		if ( doEffects && effect <= 2 ) {
+		if ( effect <= 2 && millis() < 10000 ) {
 			effect = 6;
 		}
 
