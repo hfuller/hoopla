@@ -1,0 +1,24 @@
+//Set your LED config.
+//Example for APA102 (the first number is the data pin, second number is clock pin):
+//#define LED_CONFIG APA102, 0, 2, BGR
+//Example for NeoPixels (the number is the data pin):
+//#define LED_CONFIG NEOPIXEL, 1
+
+#define LED_CONFIG APA102, 0, 2, BGR
+
+
+//Set how many LEDs you have.
+#define NUMPIXELS 48
+
+
+//Set the name of your device.
+//It appears as its ESSID (network name) when configuring.
+//It's used for a few other things.
+
+#define NAME "jennifers-hoop"
+
+
+//Set the PSK (password) used for the network created during initial configuration.
+
+#define PSK "deeznuts"
+
