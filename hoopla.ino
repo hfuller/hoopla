@@ -5,11 +5,10 @@
 #include "FastLED.h"
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
 
 #include "config.h"
 
-#define VERSION			18
+#define VERSION			19
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -27,7 +26,6 @@ const char* passwordAP = PSK;
 const byte DNS_PORT = 53;
 DNSServer dnsServer;
 ESP8266WebServer server(80);
-ESP8266HTTPUpdateServer httpUpdater;
 
 CRGB leds[300];					//NOTE: we write 300 pixels in some cases, like when blanking the strip.
 
@@ -146,7 +144,51 @@ void setup() {
 	dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
 	Serial.println("[start] Setting up http firmware uploads");
-	httpUpdater.setup(&server);
+	server.on("/update", HTTP_GET, [&](){
+		server.sendHeader("Connection", "close");
+		server.sendHeader("Access-Control-Allow-Origin", "*");
+		server.send(200, "text/html", R"(
+<html><body><form method='POST' action='/update' enctype='multipart/form-data'>
+<input type='file' name='update'>
+<input type='submit' value='Update'>
+</form>
+</body></html>
+		)");
+	});
+	// handler for the /update form POST (once file upload finishes)
+	server.on("/update", HTTP_POST, [&](){
+		server.sendHeader("Connection", "close");
+		server.sendHeader("Access-Control-Allow-Origin", "*");
+		server.send(200, "text/plain", (Update.hasError())?"FAIL":"OK");
+		//ESP.restart();
+	},[&](){
+		// handler for the file upload, get's the sketch bytes, and writes
+		// them through the Update object
+		HTTPUpload& upload = server.upload();
+		if(upload.status == UPLOAD_FILE_START){
+			WiFiUDP::stopAll();
+			Serial.printf("Update: %s\n", upload.filename.c_str());
+			uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+			if(!Update.begin(maxSketchSpace)){//start with max available size
+				//if(DEBUG) Update.printError(Serial);
+			}
+		} else if(upload.status == UPLOAD_FILE_WRITE){
+			Serial.printf(".");
+			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
+				//if(DEBUG) Update.printError(Serial);
+			}
+		} else if(upload.status == UPLOAD_FILE_END){
+			if(Update.end(true)){ //true to set the size to the current progress
+				Serial.printf("Update Success: %u\n", upload.totalSize);
+			} else {
+				//if(DEBUG) Update.printError(Serial);
+			}
+		} else if(upload.status == UPLOAD_FILE_ABORTED){
+			Update.end();
+			Serial.println("Update was aborted");
+		}
+		delay(0);
+	});
 
 	Serial.println("[start] starting http");
 	server.on("/style.css", handleStyle);
@@ -752,3 +794,4 @@ String toStringIp(IPAddress ip) {
   res += String(((ip >> 8 * 3)) & 0xFF);
   return res;
 }
+
