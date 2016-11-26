@@ -1,4 +1,8 @@
 //Set your LED config.
+
+//Tell FastLED to use the raw ESP GPIO pin numbers:
+#define FASTLED_ESP8266_RAW_PIN_ORDER
+
 //Example for APA102 (the first number is the data pin, second number is clock pin):
 //#define LED_CONFIG APA102, 0, 2, BGR
 //Example for NeoPixels (the number is the data pin):
