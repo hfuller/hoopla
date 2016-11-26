@@ -8,7 +8,7 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 
-#define VERSION			19
+#define VERSION			20
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -144,6 +144,7 @@ void setup() {
 	dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
 	Serial.println("[start] Setting up http firmware uploads");
+	//the following handler is a hack. sorry
 	server.on("/update", HTTP_GET, [&](){
 		server.sendHeader("Connection", "close");
 		server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -166,26 +167,42 @@ void setup() {
 		// them through the Update object
 		HTTPUpload& upload = server.upload();
 		if(upload.status == UPLOAD_FILE_START){
+			Serial.printf("Starting HTTP update from %s - other functions will be suspended.\n", upload.filename.c_str());
+			effect = 1;
+			color = CRGB::OrangeRed;
+
+			doServiceRestart = true;
 			WiFiUDP::stopAll();
-			Serial.printf("Update: %s\n", upload.filename.c_str());
+
 			uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 			if(!Update.begin(maxSketchSpace)){//start with max available size
 				//if(DEBUG) Update.printError(Serial);
+				effect = 2;
+				color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_WRITE){
 			Serial.printf(".");
+			runLeds();
+
 			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
 				//if(DEBUG) Update.printError(Serial);
+				effect = 2;
+				color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_END){
 			if(Update.end(true)){ //true to set the size to the current progress
 				Serial.printf("Update Success: %u\n", upload.totalSize);
+				color = CRGB::Green;
 			} else {
 				//if(DEBUG) Update.printError(Serial);
+				effect = 2;
+				color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_ABORTED){
 			Update.end();
 			Serial.println("Update was aborted");
+			effect = 2;
+			color = CRGB::Red;
 		}
 		delay(0);
 	});
