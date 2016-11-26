@@ -740,14 +740,14 @@ void handleSetup() {
   int n = WiFi.scanNetworks();
   Serial.println("[httpd] scan done");
   for (int i = 0; i < n; i++) {
-    server.sendContent(String() + "\r\n<tr><td>" + WiFi.SSID(i) + "</td><td>" + String((WiFi.encryptionType(i) == ENC_TYPE_NONE)?"Open":"Encrypted") + "</td><td>" + WiFi.RSSI(i) + "dBm</td></tr>");
+    server.sendContent(String() + "\r\n<tr onclick=\"document.getElementById('ssidinput').value=this.firstChild.innerHTML;\"><td>" + WiFi.SSID(i) + "</td><td>" + String((WiFi.encryptionType(i) == ENC_TYPE_NONE)?"Open":"Encrypted") + "</td><td>" + WiFi.RSSI(i) + "dBm</td></tr>");
   }
   //server.sendContent(String() + "<tr><td>SSID " + String(WiFi.SSID()) + "</td></tr>");
   server.sendContent(String() + "\
 		</table>\
 		<h4>Connect to a network</h4>\
 		<form method='POST' action='/setup/save'>\
-			<input type='text' placeholder='network' value='" + String(WiFi.SSID()) + "' name='n'>\
+			<input type='text' id='ssidinput' placeholder='network' value='" + String(WiFi.SSID()) + "' name='n'>\
 			<input type='password' placeholder='password' value='" + String(WiFi.psk()) + "' name='p'>\
 			<button type='submit'>Save and Connect</button>\
 		</form>\
