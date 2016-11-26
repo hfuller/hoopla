@@ -37,6 +37,8 @@ unsigned long lastWirelessChange;
 byte effect = 0;
 CRGB color = CRGB::Teal;
 CRGB nextColor = CRGB::Black;
+//BlinkOne/SolidOne
+uint8_t offset = 0; //how many to skip when writing the LED.
 //Colorpal
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
@@ -184,6 +186,11 @@ void setup() {
 			Serial.printf(".");
 			runLeds();
 
+			//simple incrementing chase effect.
+			if ( ++offset >= NUMPIXELS ) {
+				offset = 0;
+			}
+
 			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
 				//if(DEBUG) Update.printError(Serial);
 				effect = 2;
@@ -192,6 +199,7 @@ void setup() {
 		} else if(upload.status == UPLOAD_FILE_END){
 			if(Update.end(true)){ //true to set the size to the current progress
 				Serial.printf("Update Success: %u\n", upload.totalSize);
+				effect = 2;
 				color = CRGB::Green;
 			} else {
 				//if(DEBUG) Update.printError(Serial);
@@ -539,7 +547,7 @@ void runLightning() {
 
 void runBlinkOne() {
 	EVERY_N_MILLISECONDS(500) {
-		if ( leds[0] == CRGB(0,0,0) ) {
+		if ( nextColor == CRGB(0,0,0) ) {
 			nextColor = color;
 		} else {
 			nextColor = CRGB::Black;
@@ -547,12 +555,12 @@ void runBlinkOne() {
 	}
 
 	runFill();
-	leds[0] = nextColor;
+	leds[offset] = nextColor;
 }
 
 void runSolidOne() {
 	runFill();
-	leds[0] = color;
+	leds[offset] = color;
 }
 
 
