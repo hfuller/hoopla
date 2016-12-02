@@ -1,4 +1,9 @@
 #include "config.h"
+
+//Tell FastLED to use the raw ESP GPIO pin numbers.
+//We have to do that before we load the FastLED library
+#define FASTLED_ESP8266_RAW_PIN_ORDER
+
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
