@@ -11,6 +11,7 @@
 #include <FastLED.h>
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
+#include <FS.h>
 
 #define VERSION			20
 
@@ -119,6 +120,21 @@ void setup() {
 	
 	Serial.begin(115200);
 	Serial.print("[start] hoopla v"); Serial.println(VERSION);
+
+	Serial.println("[start] Loading configuration");
+	FSInfo fs_info;
+	Serial.print("[start] SPIFFS ");
+	SPIFFS.begin();
+	Serial.print(" info: ");
+	if ( ! SPIFFS.info(fs_info) ) {
+		//the FS info was not retrieved correctly. it's probably not formatted
+		Serial.println("unformatted");
+		Serial.println("[start] Formatting SPIFFS. This could take a long time!");
+		SPIFFS.format();
+		Serial.print("[start] spiffs format done, reloading info... ");
+		SPIFFS.info(fs_info);
+	}
+	Serial.print(fs_info.usedBytes); Serial.print("/"); Serial.print(fs_info.totalBytes); Serial.println(" bytes used");
 
 	Serial.println("[start] Starting LEDs");
 	FastLED.addLeds<LED_CONFIG>(leds, 300);
