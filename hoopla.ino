@@ -144,6 +144,7 @@ class StripHandler : public LightHandler {
           Serial.println("[emhue] Effect was set to color loop");
           return;
         } else if (pattern) {
+          Serial.println("[emhue] Setting pattern");
           // pattern is an array of color settings objects
           // apply to first pattern_len lights
           int pattern_len = aJson.getArraySize(pattern);
@@ -164,6 +165,7 @@ class StripHandler : public LightHandler {
           }
           return;
         }
+        Serial.println("[emhue] Changing color");
         color = newColor;
         effect = 3; //SolidAll
       }
