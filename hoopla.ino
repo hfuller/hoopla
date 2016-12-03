@@ -19,7 +19,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			29
+#define VERSION			30
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -980,10 +980,13 @@ String toStringIp(IPAddress ip) {
 }
 
 CHSV getCHSV(int hue, int sat, int bri) {
+  //TODO: This is stupid inefficient (especially with regards to H value). Fix it.
+  Serial.print("[gCHSV] H:"); Serial.print(hue); Serial.print("S:"); Serial.print(sat); Serial.print("V:"); Serial.println(bri);
   float H, S, B;
-  H = ((float)hue) / 182.04 / 360.0;
-  S = ((float)sat) / COLOR_SATURATION;
-  B = ((float)bri) / COLOR_SATURATION;
+  //H = ((float)hue) / 182.04 / 360.0;
+  H = ((float)hue) / 255; //These values are out of 65535 so we divide by 255 to get to a value/257.
+  S = ((float)sat); //These values are out of 254.
+  B = ((float)bri); //These values are out of 254.
   return CHSV(H, S, B);
 }
 CHSV getCHSV(const CRGB& color) { //from neopixelbus
