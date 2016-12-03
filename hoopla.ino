@@ -93,6 +93,7 @@ uint8_t ledlen;                                               // Length of a fla
 bool isAP = false;
 bool doConnect = false;
 bool doServiceRestart = true;
+bool doDeviceRestart = false;
 bool doEffects = true;
 
 void runColorpal();
@@ -314,13 +315,12 @@ void setup() {
 		server.sendHeader("Connection", "close");
 		server.sendHeader("Access-Control-Allow-Origin", "*");
 		server.send(200, "text/plain", (Update.hasError())?"FAIL":"OK");
-		//ESP.restart();
 	},[&](){
 		// handler for the file upload, get's the sketch bytes, and writes
 		// them through the Update object
 		HTTPUpload& upload = server.upload();
 		if(upload.status == UPLOAD_FILE_START){
-			Serial.printf("Starting HTTP update from %s - other functions will be suspended.\n", upload.filename.c_str());
+			Serial.printf("Starting HTTP update from %s - other functions will be suspended.\r\n", upload.filename.c_str());
 			effect = 2;
 			color = CRGB::OrangeRed;
 
@@ -333,12 +333,12 @@ void setup() {
 				color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_WRITE){
-			Serial.printf(".");
+			Serial.print(upload.totalSize); Serial.printf(" bytes written\r");
 			runLeds();
 
-			//simple incrementing chase effect.
-			if ( ++offset >= numpixels ) {
-				offset = 0;
+			offset = ( upload.totalSize / ( 350000 / numpixels ) );
+			if ( offset >= numpixels ) {
+				offset = numpixels-1;
 			}
 
 			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
@@ -348,7 +348,9 @@ void setup() {
 		} else if(upload.status == UPLOAD_FILE_END){
 			if(Update.end(true)){ //true to set the size to the current progress
 				Serial.printf("Update Success: %u\n", upload.totalSize);
-				color = CRGB::Green;
+				color = CRGB::Yellow;
+				runLeds();
+				doDeviceRestart = true;
 			} else {
 				//if(DEBUG) Update.printError(Serial);
 				color = CRGB::Red;
@@ -430,6 +432,10 @@ void loop() {
 	LightService.update();
 	
 	EVERY_N_MILLISECONDS(1000) {
+
+		if ( doDeviceRestart ) {
+			ESP.restart();
+		}
 
 		//time to do our every-second tasks
 		#ifdef DEBUG
