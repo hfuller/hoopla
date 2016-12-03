@@ -994,9 +994,9 @@ CHSV getCHSV(int hue, int sat, int bri) {
   Serial.print("[gCHSV] H:"); Serial.print(hue); Serial.print("S:"); Serial.print(sat); Serial.print("V:"); Serial.println(bri);
   float H, S, B;
   H = ((float)hue) / 182.04 / 360.0;
-  S = ((float)sat); // / COLOR_SATURATION;
-  B = ((float)bri); // / COLOR_SATURATION;
-  return CHSV(H*255, S, B);
+  S = ((float)sat) / COLOR_SATURATION;
+  B = ((float)bri) / COLOR_SATURATION;
+  return CHSV(H*255, S*255, B*255);
 }
 CHSV getCHSV(const CRGB& color) { //from neopixelbus
     // convert colors to float between (0.0 - 1.0)
