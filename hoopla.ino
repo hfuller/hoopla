@@ -166,7 +166,9 @@ class StripHandler : public LightHandler {
           return;
         }
         Serial.println("[emhue] Changing color");
+        //Serial.print("[emhue] H:"); Serial.print(newColor.h); Serial.print("S:"); Serial.print(newColor.s); Serial.print("V:"); Serial.println(newColor.v);
         color = newColor;
+        //Serial.print("[emhue] R:"); Serial.print(color.r); Serial.print("G:"); Serial.print(color.g); Serial.print("B:"); Serial.println(color.b);
         effect = 3; //SolidAll
       }
       else
@@ -985,11 +987,10 @@ CHSV getCHSV(int hue, int sat, int bri) {
   //TODO: This is stupid inefficient (especially with regards to H value). Fix it.
   Serial.print("[gCHSV] H:"); Serial.print(hue); Serial.print("S:"); Serial.print(sat); Serial.print("V:"); Serial.println(bri);
   float H, S, B;
-  //H = ((float)hue) / 182.04 / 360.0;
-  H = ((float)hue) / 255; //These values are out of 65535 so we divide by 255 to get to a value/257.
-  S = ((float)sat); //These values are out of 254.
-  B = ((float)bri); //These values are out of 254.
-  return CHSV(H, S, B);
+  H = ((float)hue) / 182.04 / 360.0;
+  S = ((float)sat); // / COLOR_SATURATION;
+  B = ((float)bri); // / COLOR_SATURATION;
+  return CHSV(H*255, S, B);
 }
 CHSV getCHSV(const CRGB& color) { //from neopixelbus
     // convert colors to float between (0.0 - 1.0)
@@ -1023,6 +1024,6 @@ CHSV getCHSV(const CRGB& color) { //from neopixelbus
         h /= 6.0f;
     }
 
-
+    return CHSV(h,s,v);
     return CHSV(h,s,v);
 }
