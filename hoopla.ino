@@ -12,8 +12,9 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <FS.h>
+#include <EEPROM.h>
 
-#define VERSION			20
+#define VERSION			26
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -25,8 +26,9 @@ const char* ssid = "";
 const char* password = "";
 char ssidTemp[32] = "";
 char passwordTemp[32] = "";
-const char* name = NAME;
-const char* passwordAP = PSK;
+char name[32];
+char passwordAP[32];
+int numpixels = 1;
 
 const byte DNS_PORT = 53;
 DNSServer dnsServer;
@@ -121,23 +123,87 @@ void setup() {
 	Serial.begin(115200);
 	Serial.print("[start] hoopla v"); Serial.println(VERSION);
 
-	Serial.println("[start] Loading configuration");
+	Serial.print("[start] Starting SPIFFS. ");
 	FSInfo fs_info;
-	Serial.print("[start] SPIFFS ");
 	SPIFFS.begin();
-	Serial.print(" info: ");
+	Serial.print("info: ");
 	if ( ! SPIFFS.info(fs_info) ) {
 		//the FS info was not retrieved correctly. it's probably not formatted
 		Serial.println("unformatted");
 		Serial.println("[start] Formatting SPIFFS. This could take a long time!");
 		SPIFFS.format();
+		SPIFFS.begin();
 		Serial.print("[start] spiffs format done, reloading info... ");
 		SPIFFS.info(fs_info);
 	}
 	Serial.print(fs_info.usedBytes); Serial.print("/"); Serial.print(fs_info.totalBytes); Serial.println(" bytes used");
+	
+	Serial.println("[start] Loading configuration from spiffs");
+	File f;
+	if ( ! SPIFFS.exists("/name") ) {
+		Serial.println("[start] Setting default host name");
+		f = SPIFFS.open("/name", "w");
+		f.println("hoopla-device");
+		f.close();
+	}
+	f = SPIFFS.open("/name", "r");
+	f.readStringUntil('\n').toCharArray(name, 32);
+	f.close();
+	if ( ! SPIFFS.exists("/psk") ) {
+		Serial.println("[start] Setting empty PSK");
+		f = SPIFFS.open("/psk", "w");
+		f.println();
+		f.close();
+	}
+	f = SPIFFS.open("/psk", "r");
+	f.readStringUntil('\n').toCharArray(passwordAP, 32);
+	f.close();
+	Serial.print("[start] Hello from "); Serial.println(name);		
 
-	Serial.println("[start] Starting LEDs");
-	FastLED.addLeds<LED_CONFIG>(leds, 300);
+	Serial.println("[start] Loading configuration from eeprom");
+	EEPROM.begin(256);
+	byte x = EEPROM.read(0);
+	if ( x != VERSION ) {
+		//we just got upgrayedded or downgrayedded
+		Serial.print("[start] We just moved from v"); Serial.println(x);
+		EEPROM.write(0,VERSION);
+		Serial.print("[start] Welcome to v"); Serial.println(VERSION);
+	}
+	byte hardwareType = EEPROM.read(1);
+	if ( hardwareType > 3 ) {
+		Serial.println("[start] Resetting hardware type");
+		EEPROM.write(1, 0);
+		hardwareType = 0;
+	}
+	numpixels = (EEPROM.read(2)*256)+(EEPROM.read(3)); //math devilry
+	if ( numpixels > 1000 ) { //absurd
+		Serial.println("[start] Resetting number of pixels");
+		EEPROM.write(2, 0);   //number of pixels (MSB)
+		EEPROM.write(3, 100); //number of pixels (LSB)
+		numpixels = 100;
+	}
+	EEPROM.end(); //write the "EEPROM" to flash (on an ESP anyway)
+
+	Serial.print("[start] Starting "); Serial.print(numpixels); Serial.print(" ");
+	switch (hardwareType) {
+		case 0: //custom type
+			FastLED.addLeds<LED_CONFIG>(leds, 300);
+			Serial.print("Custom LEDs from config.h");
+			break;
+		case 1: //Wemos D1 Mini with NeoPixel shield
+			FastLED.addLeds<NEOPIXEL, 4>(leds, 300);
+			Serial.print("NeoPixels on D2");
+			break;
+		case 2: //horizontal LED strip at the shop; cloud at Synapse
+			FastLED.addLeds<NEOPIXEL, 5>(leds, 300);
+			Serial.print("NeoPixels on D1");
+			break;
+		case 3: //APA102 LED hoop with ESP-01
+			FastLED.addLeds<APA102, 0, 2, BGR>(leds, 300);
+			Serial.print("DotStars on 0,2");
+			break;
+	}
+	Serial.println();
 	FastLED.setMaxPowerInVoltsAndMilliamps(5,MAX_LOAD_MA); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
 	FastLED.setMaxRefreshRate(FRAMERATE);
@@ -206,7 +272,7 @@ void setup() {
 			runLeds();
 
 			//simple incrementing chase effect.
-			if ( ++offset >= NUMPIXELS ) {
+			if ( ++offset >= numpixels ) {
 				offset = 0;
 			}
 
@@ -283,7 +349,7 @@ void setup() {
 	ArduinoOTA.begin();
 
 	color = CRGB::Green; runLeds();
-	Serial.println("Startup complete.");
+	Serial.println("[start] Startup complete.");
 }
 
 void loop() {
@@ -298,7 +364,7 @@ void loop() {
 		#ifdef DEBUG
 		double fr = (double)frameCount/((double)(millis()-timer1s)/1000);
 		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(fr);
-		uint32_t loadmw = calculate_unscaled_power_mW(leds,NUMPIXELS);
+		uint32_t loadmw = calculate_unscaled_power_mW(leds,numpixels);
 		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw/5); Serial.print("mA) - ");
 		Serial.print("Wi-Fi: "); Serial.print( (WiFi.status() == WL_CONNECTED) ? "Connected" : "Disconnected");
 		Serial.println();
@@ -430,7 +496,7 @@ void runLeds() {
 //EFFECTS
 
 void runFill() {
-	for ( int i=0; i<NUMPIXELS; i++ ) {
+	for ( int i=0; i<numpixels; i++ ) {
 		leds[i] = CRGB::Black;
 	}
 }
@@ -454,31 +520,31 @@ void runConfetti() {
 		}
 	}
 
-	fadeToBlackBy(leds, NUMPIXELS, thisfade);                    // Low values = slower fade.
-	int pos = random16(NUMPIXELS);                               // Pick an LED at random.
+	fadeToBlackBy(leds, numpixels, thisfade);                    // Low values = slower fade.
+	int pos = random16(numpixels);                               // Pick an LED at random.
 	leds[pos] += CHSV((thishue + random16(huediff))/4 , thissat, thisbri);  // I use 12 bits for hue so that the hue increment isn't too quick.
 	thishue = thishue + thisinc;                                // It increments here.
 }
 
 void runDotBeat() {
-	uint8_t inner = beatsin8(bpm, NUMPIXELS/4, NUMPIXELS/4*3);
-	uint8_t outer = beatsin8(bpm, 0, NUMPIXELS-1);
-	uint8_t middle = beatsin8(bpm, NUMPIXELS/3, NUMPIXELS/3*2);
+	uint8_t inner = beatsin8(bpm, numpixels/4, numpixels/4*3);
+	uint8_t outer = beatsin8(bpm, 0, numpixels-1);
+	uint8_t middle = beatsin8(bpm, numpixels/3, numpixels/3*2);
 
 	//leds[middle] = CRGB::Purple; leds[inner] = CRGB::Blue; leds[outer] = CRGB::Aqua;
 	leds[middle] = CRGB::Aqua; leds[inner] = CRGB::Blue; leds[outer] = CRGB::Purple;
 
-	nscale8(leds,NUMPIXELS,fadeval);                             // Fade the entire array. Or for just a few LED's, use  nscale8(&leds[2], 5, fadeval);
+	nscale8(leds,numpixels,fadeval);                             // Fade the entire array. Or for just a few LED's, use  nscale8(&leds[2], 5, fadeval);
 }
 
 void runFastCirc() {
 	EVERY_N_MILLISECONDS(50) {
 		thiscount = (thiscount + thisdir)%thisgap;
-		for ( int i=thiscount; i<NUMPIXELS; i+=thisgap ) {
+		for ( int i=thiscount; i<numpixels; i+=thisgap ) {
 			leds[i] = color;
 		}
 	}
-	fadeToBlackBy(leds, NUMPIXELS, 24);
+	fadeToBlackBy(leds, numpixels, 24);
 }
 
 void runEaseMe() {
@@ -498,16 +564,16 @@ void runEaseMe() {
 		rev = false;
 	}
 
-	lerpVal = lerp8by8(0, NUMPIXELS, easeOutVal);
+	lerpVal = lerp8by8(0, numpixels, easeOutVal);
 
-	for ( int i = lerpVal; i < NUMPIXELS; i += 8 ) {
+	for ( int i = lerpVal; i < numpixels; i += 8 ) {
 		leds[i] = color;
 	}
-	fadeToBlackBy(leds, NUMPIXELS, 32);                     // 8 bit, 1 = slow, 255 = fast
+	fadeToBlackBy(leds, numpixels, 32);                     // 8 bit, 1 = slow, 255 = fast
 }
 
 void runRotatingRainbow() {
-	fill_rainbow(leds, NUMPIXELS, count, 5);
+	fill_rainbow(leds, numpixels, count, 5);
 	count += 2;
 }
 
@@ -518,9 +584,9 @@ void runJuggle() {
 			case 13: numdots = 8; basebeat =  3; hueinc =  0; faderate = 8; thishue=random8(); break;           // Only gets called once, and not continuously for the next several seconds. Therefore, no rainbows.
 	}
 	curhue = thishue;                                           // Reset the hue values.
-	fadeToBlackBy(leds, NUMPIXELS, faderate);
+	fadeToBlackBy(leds, numpixels, faderate);
 	for( int i = 0; i < numdots; i++) {
-		leds[beatsin16(basebeat+i+numdots,0,NUMPIXELS)] += CHSV(curhue, thissat, thisbri);   //beat16 is a FastLED 3.1 function
+		leds[beatsin16(basebeat+i+numdots,0,numpixels)] += CHSV(curhue, thissat, thisbri);   //beat16 is a FastLED 3.1 function
 		curhue += hueinc;
 	}
 }
@@ -534,8 +600,8 @@ void runLightning() {
 		if ( flashCounter == 0 ) {
 			//Serial.println("[ltnng] New strike");
 			//new strike. init our values for this set of flashes
-			ledstart = random16(NUMPIXELS);           // Determine starting location of flash
-			ledlen = random16(NUMPIXELS-ledstart);    // Determine length of flash (not to go beyond NUMPIXELS-1)
+			ledstart = random16(numpixels);           // Determine starting location of flash
+			ledlen = random16(numpixels-ledstart);    // Determine length of flash (not to go beyond numpixels-1)
 			dimmer = 5;
 			nextFlashDelay += 150;   // longer delay until next flash after the leader
 		} else {
@@ -584,7 +650,7 @@ void runSolidOne() {
 
 void FillLEDsFromPaletteColors(uint8_t colorIndex) {
 	//uint8_t beatB = beatsin8(30, 10, 20);                       // Delta hue between LED's
-    for (int i = 0; i < NUMPIXELS; i++) {
+    for (int i = 0; i < numpixels; i++) {
 	    leds[i] = ColorFromPalette(currentPalette, colorIndex, 255, currentBlending);
 	    //colorIndex += beatB;
 	}
