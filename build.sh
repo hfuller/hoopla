@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-NAME="$(grep '#define NAME' config.h | cut -d '"' -f 2)"
+NAME="hoopla-devkit"
 
 #terrible build script
 ~/Downloads/arduino-1.6.7/arduino hoopla.ino
