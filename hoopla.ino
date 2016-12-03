@@ -99,6 +99,7 @@ void runRotatingRainbow();
 void runJuggle();
 void runLightning();
 void runFill();
+void runFill(CRGB dest);
 void runSolidOne();
 void runBlinkOne();
 void FillLEDsFromPaletteColors(uint8_t colorIndex);
@@ -459,6 +460,9 @@ void runLeds() {
 		case 2:
 			runSolidOne();
 			break;
+		case 3:
+			runFill(color);
+			break;
 		case 7:
 		case 8:
 		case 9:
@@ -495,10 +499,13 @@ void runLeds() {
 
 //EFFECTS
 
-void runFill() {
+void runFill(CRGB dest) {
 	for ( int i=0; i<numpixels; i++ ) {
-		leds[i] = CRGB::Black;
+		leds[i] = dest;
 	}
+}
+void runFill() {
+	runFill(CRGB::Black);
 }
 	
 void runColorpal() {
