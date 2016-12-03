@@ -1,0 +1,216 @@
+--- LightService.cpp	2016-12-02 22:04:50.872906837 -0600
++++ /home/hunter/Arduino/hoopla/LightService.cpp	2016-12-02 23:55:44.496801984 -0600
+@@ -16,7 +16,7 @@
+ // The username of the client (currently we authorize all clients simulating a pressed button on the bridge)
+ String client;
+ 
+-ESP8266WebServer HTTP(80);
++ESP8266WebServer * httpServer;
+ 
+ LightServiceClass LightService;
+ 
+@@ -113,7 +113,7 @@
+   }
+ }
+ 
+-void LightServiceClass::begin() {
++void LightServiceClass::begin(ESP8266WebServer * svr) {
+   macString = String(WiFi.macAddress());
+   bridgeIDString = macString;
+   bridgeIDString.replace(":", "");
+@@ -122,14 +122,11 @@
+   netmaskString = StringIPaddress(WiFi.subnetMask());
+   gatewayString = StringIPaddress(WiFi.gatewayIP());
+ 
+-  Serial.print("Starting HTTP at ");
+-  Serial.print(WiFi.localIP());
+-  Serial.print(":");
+-  Serial.println(80);
++  Serial.println("Setting up HTTP");
+ 
+-  HTTP.onNotFound(handleAllOthers);
++  httpServer = svr;
+ 
+-  HTTP.begin();
++  httpServer->onNotFound(handleAllOthers);
+ 
+   Serial.println("Starting SSDP...");
+   SSDP.begin();
+@@ -149,7 +146,7 @@
+ }
+ 
+ void LightServiceClass::update() {
+-  HTTP.handleClient();
++  httpServer->handleClient();
+ }
+ 
+ void sendJson(aJsonObject *root)
+@@ -160,7 +157,7 @@
+   aJson.deleteItem(root);
+   Serial.println(millis());
+   Serial.println(msgStr);
+-  HTTP.send(200, "text/plain", msgStr);
++  httpServer->send(200, "text/plain", msgStr);
+   free(msgStr);
+ }
+ 
+@@ -249,7 +246,7 @@
+ }
+ 
+ void sendUpdated() {
+-  HTTP.send(200, "text/plain", "Updated.");
++  httpServer->send(200, "text/plain", "Updated.");
+ }
+ 
+ bool parseHueLightInfo(HueLightInfo currentInfo, aJsonObject *parsedRoot, HueLightInfo *newInfo) {
+@@ -403,7 +400,7 @@
+ void lightsHandler(String user, String uri) {
+   uri = trimSlash(uri.substring(6));
+   if (uri == "") {
+-    switch (HTTP.method()) {
++    switch (httpServer->method()) {
+       case HTTP_GET: {
+           // dump existing lights
+           aJsonObject *lights = aJson.createObject();
+@@ -433,8 +430,8 @@
+     int numberOfTheLight = atoi(lightText.c_str()) - 1;
+ 
+     Serial.print("JSON Body:");
+-    Serial.println(HTTP.arg("plain"));
+-    aJsonObject* parsedRoot = aJson.parse(( char*) HTTP.arg("plain").c_str());
++    Serial.println(httpServer->arg("plain"));
++    aJsonObject* parsedRoot = aJson.parse(( char*) httpServer->arg("plain").c_str());
+     LightHandler *handler = LightService.getLightHandler(numberOfTheLight);
+     if (!handler) {
+       sendError(3, uri, "Requested light not available");
+@@ -449,7 +446,7 @@
+       }
+       handler->handleQuery(numberOfTheLight, newInfo, parsedRoot);
+       aJson.deleteItem(parsedRoot);
+-    } else if (HTTP.arg("plain") != "") {
++    } else if (httpServer->arg("plain") != "") {
+       // unparseable json
+       sendError(2, "groups/0/action", "Bad JSON body in request");
+       return;
+@@ -474,8 +471,8 @@
+ 
+ void applyConfigToLightMask(unsigned int lights) {
+   Serial.print("JSON Body:");
+-  Serial.println(HTTP.arg("plain"));
+-  aJsonObject* parsedRoot = aJson.parse(( char*) HTTP.arg("plain").c_str());
++  Serial.println(httpServer->arg("plain"));
++  aJsonObject* parsedRoot = aJson.parse(( char*) httpServer->arg("plain").c_str());
+   if (parsedRoot) {
+     for (int i = 0; i < LightService.getLightsAvailable(); i++) {
+       LightHandler *handler = LightService.getLightHandler(i);
+@@ -489,7 +486,7 @@
+ 
+     // As per the spec, the response can be "Updated." for memory-constrained devices
+     sendUpdated();
+-  } else if (HTTP.arg("plain") != "") {
++  } else if (httpServer->arg("plain") != "") {
+     // unparseable json
+     sendError(2, "groups/0/action", "Bad JSON body in request");
+   }
+@@ -578,7 +575,7 @@
+     sendError(301, "groups", "Groups table full");
+     return;
+   }
+-  if (!updateGroupSlot(availableSlot, HTTP.arg("plain"))) {
++  if (!updateGroupSlot(availableSlot, httpServer->arg("plain"))) {
+     String slot = "";
+     slot += (availableSlot + 1);
+     sendSuccess("id", slot);
+@@ -601,7 +598,7 @@
+ void groupsHandler(String user, String uri) {
+   uri = trimSlash(uri.substring(6));
+   if (uri == "") {
+-    switch (HTTP.method()) {
++    switch (httpServer->method()) {
+       case HTTP_GET:
+         groupListingHandler();
+         break;
+@@ -637,7 +634,7 @@
+   }
+ 
+   if (uri == "") {
+-    switch (HTTP.method()) {
++    switch (httpServer->method()) {
+       case HTTP_GET:
+         if (groupNum != -1) {
+           sendJson(lightGroups[groupNum]->getJson());
+@@ -660,7 +657,7 @@
+         break;
+       case HTTP_PUT:
+         // validate body, delete old group, create new group
+-        updateGroupSlot(groupNum, HTTP.arg("plain"));
++        updateGroupSlot(groupNum, httpServer->arg("plain"));
+         sendUpdated();
+         break;
+       case HTTP_DELETE:
+@@ -674,7 +671,7 @@
+   }
+ 
+   if (uri == "action") {
+-    if (HTTP.method() != HTTP_PUT) {
++    if (httpServer->method() != HTTP_PUT) {
+       // error, only PUT allowed
+       sendError(4, "/api/" + user + "/groups/" + groupNum + "/action", "Only PUT supported for groups/*/action");
+       return;
+@@ -693,8 +690,8 @@
+ 
+ void scenesHandler(String user, String uri) {
+   uri = trimSlash(uri.substring(6));
+-  if (uri == "" && HTTP.method() == HTTP_GET) {
+-    HTTP.send(200, "text/plain", "{}");
++  if (uri == "" && httpServer->method() == HTTP_GET) {
++    httpServer->send(200, "text/plain", "{}");
+     return;
+   }
+   // no part of /api/user/scenes is supported, so all methods are unsupported
+@@ -722,9 +719,9 @@
+ }
+ 
+ void descriptionHandler(String user, String uri) {
+-  WiFiClient client = HTTP.client();
++  WiFiClient client = httpServer->client();
+   String str = "<root><specVersion><major>1</major><minor>0</minor></specVersion><URLBase>http://" + ipString + ":80/</URLBase><device><deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType><friendlyName>Philips hue (" + ipString + ")</friendlyName><manufacturer>Royal Philips Electronics</manufacturer><manufacturerURL>http://www.philips.com</manufacturerURL><modelDescription>Philips hue Personal Wireless Lighting</modelDescription><modelName>Philips hue bridge 2012</modelName><modelNumber>929000226503</modelNumber><modelURL>http://www.meethue.com</modelURL><serialNumber>00178817122c</serialNumber><UDN>uuid:2f402f80-da50-11e1-9b23-00178817122c</UDN><presentationURL>index.html</presentationURL><iconList><icon><mimetype>image/png</mimetype><height>48</height><width>48</width><depth>24</depth><url>hue_logo_0.png</url></icon><icon><mimetype>image/png</mimetype><height>120</height><width>120</width><depth>24</depth><url>hue_logo_3.png</url></icon></iconList></device></root>";
+-  HTTP.send(200, "text/plain", str);
++  httpServer->send(200, "text/plain", str);
+   Serial.println(str);
+ }
+ 
+@@ -744,8 +741,8 @@
+   Serial.print("=== ");
+   Serial.println(millis());
+   Serial.print("Method: ");
+-  Serial.println(methodToString(HTTP.method()));
+-  String fullUri = trimSlash(HTTP.uri());
++  Serial.println(methodToString(httpServer->method()));
++  String fullUri = trimSlash(httpServer->uri());
+   Serial.print("requestedUri: ");
+   Serial.println(fullUri);
+ 
+@@ -758,7 +755,7 @@
+   // make sure /api is there, rip it off along with trailing slash if present
+   if (!fullUri.startsWith("api")) {
+     // bail, unimplemented
+-    HTTP.send(200, "text/plain", "{}");
++    httpServer->send(200, "text/plain", "{}");
+     Serial.println("FIXME: To be implemented");
+     return;
+   }
+@@ -797,11 +794,11 @@
+   } else if (requestedUri.startsWith("scenes")) {
+     scenesHandler(user, requestedUri);
+   } else {
+-    HTTP.send(200, "text/plain", "()");
++    httpServer->send(200, "text/plain", "()");
+     Serial.println("FIXME: To be implemented");
+ 
+     // Print what the client has POSTed
+-    for (uint8_t i = 0; i < HTTP.args(); i++) Serial.printf("ARG[%u]: %s=%s\n", i, HTTP.argName(i).c_str(), HTTP.arg(i).c_str());
++    for (uint8_t i = 0; i < httpServer->args(); i++) Serial.printf("ARG[%u]: %s=%s\n", i, httpServer->argName(i).c_str(), httpServer->arg(i).c_str());
+   }
+   Serial.println(millis());
+ }
