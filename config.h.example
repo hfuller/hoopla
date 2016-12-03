@@ -1,4 +1,4 @@
-//What kind of LEDs do you have?
+//If you want to define a custom hardware type, change the LED_CONFIG macro.
 
 //If you have a NodeMCU or Wemos D1 Mini board, use the raw pin numbers.
 //Don't use the pin numbers that are written on the board.
@@ -9,24 +9,7 @@
 //#define LED_CONFIG APA102, 0, 2, BGR
 
 //Example for NeoPixels (the number is the data pin):
-//#define LED_CONFIG NEOPIXEL, 5
+//#define LED_CONFIG NEOPIXEL, 4
 
-#define LED_CONFIG APA102, 0, 2, BGR
-
-
-//Set how many LEDs you have.
-
-#define NUMPIXELS 48
-
-
-//Set the name of your device.
-//It appears as its ESSID (network name) when configuring.
-//It's used for a few other things.
-
-#define NAME "jennifers-hoop"
-
-
-//Set the PSK (password) used for the network created during initial configuration.
-
-#define PSK "deeznuts"
+#define LED_CONFIG NEOPIXEL, 4
 
