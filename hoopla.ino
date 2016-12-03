@@ -92,7 +92,7 @@ uint8_t ledlen;                                               // Length of a fla
 
 bool isAP = false;
 bool doConnect = false;
-bool doServiceRestart = false;
+bool doServiceRestart = true;
 bool doEffects = true;
 
 void runColorpal();
@@ -288,7 +288,7 @@ void setup() {
 	WiFi.hostname(name);
 	WiFi.begin();
 
-	Serial.println("[start] Starting DNS");
+	Serial.print("[start] Starting DNS on "); Serial.println(WiFi.softAPIP());
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
 	dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
@@ -494,6 +494,11 @@ void loop() {
 			if ( doServiceRestart ) {
 				Serial.println("[Wi-Fi] Restarting services due to Wi-Fi state change");
 				ArduinoOTA.begin();
+
+				LightService.begin(&server);
+				LightService.setLightsAvailable(1);
+				LightService.setLightHandler(0, new StripHandler());
+
 				doServiceRestart = false;
 			}
 		}
