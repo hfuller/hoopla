@@ -363,11 +363,6 @@ void setup() {
 		delay(0);
 	});
 
-	Serial.println("[start] Setting up Philips Hue emulation");
-	LightService.begin(&server);
-	LightService.setLightsAvailable(1);
-	LightService.setLightHandler(0, new StripHandler());
-
 	Serial.println("[start] starting http");
 	server.on("/style.css", handleStyle);
 	server.on("/", handleRoot);
@@ -418,8 +413,7 @@ void setup() {
 		else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
 		else if (error == OTA_END_ERROR) Serial.println("End Failed");
 	});
-	ArduinoOTA.begin();
-
+	
 	color = CRGB::Green; runLeds();
 	Serial.println("[start] Startup complete.");
 }
@@ -503,8 +497,11 @@ void loop() {
 			}
 			if ( doServiceRestart ) {
 				Serial.println("[Wi-Fi] Restarting services due to Wi-Fi state change");
+
+				Serial.println("[Wi-Fi] Setting up OTA");
 				ArduinoOTA.begin();
 
+				Serial.println("[Wi-Fi] Setting up Philips Hue emulation");
 				LightService.begin(&server);
 				LightService.setLightsAvailable(1);
 				LightService.setLightHandler(0, new StripHandler());
