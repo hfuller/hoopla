@@ -92,8 +92,8 @@ uint8_t ledlen;                                               // Length of a fla
 
 bool isAP = false;
 bool doConnect = false;
-bool doServiceRestart = true;
-bool doDeviceRestart = false;
+bool doRestartServices = true;
+bool doRestartDevice = false;
 bool doEffects = true;
 
 void runColorpal();
@@ -332,7 +332,7 @@ void setup() {
 			effect = 2;
 			color = CRGB::OrangeRed;
 
-			doServiceRestart = true;
+			doRestartServices = true;
 			WiFiUDP::stopAll();
 
 			uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
@@ -358,7 +358,7 @@ void setup() {
 				Serial.printf("Update Success: %u\n", upload.totalSize);
 				color = CRGB::Yellow;
 				runLeds();
-				doDeviceRestart = true;
+				doRestartDevice = true;
 			} else {
 				//if(DEBUG) Update.printError(Serial);
 				color = CRGB::Red;
@@ -428,14 +428,21 @@ void setup() {
 
 void loop() {
 	
-	ArduinoOTA.handle();
-	dnsServer.processNextRequest();
 	server.handleClient();
-	LightService.update();
+	
+	if ( ! doRestartServices ) {
+		//The services have been started at least once.
+		//If we don't wait until they have been started,
+		//the service will blow up because it tries to
+		//work without the setup functions being run first.
+		ArduinoOTA.handle();
+		dnsServer.processNextRequest();
+		LightService.update();
+	}
 	
 	EVERY_N_MILLISECONDS(1000) {
 
-		if ( doDeviceRestart ) {
+		if ( doRestartDevice ) {
 			ESP.restart();
 		}
 
@@ -482,7 +489,7 @@ void loop() {
 			WiFi.begin(ssidTemp,passwordTemp);
 			doConnect = false; //shouldn't need this but sometimes we do... if WiFi.status() isn't updated by the underlying libs
 			lastWirelessChange = millis();
-			doServiceRestart = true; //restart OTA
+			doRestartServices = true; //restart OTA
 		}
 		if ( (millis() - lastWirelessChange) > 60000 ) {
 			//We tried to associate to wireless over 60 seconds ago.
@@ -503,7 +510,7 @@ void loop() {
 				lastWirelessChange = millis();
 				isAP = true;
 			}
-			if ( doServiceRestart ) {
+			if ( doRestartServices ) {
 				Serial.println("[Wi-Fi] Restarting services due to Wi-Fi state change");
 
 				Serial.println("[Wi-Fi] Setting up OTA");
@@ -514,7 +521,7 @@ void loop() {
 				LightService.setLightsAvailable(1);
 				LightService.setLightHandler(0, new StripHandler());
 
-				doServiceRestart = false;
+				doRestartServices = false;
 			}
 		}
 
