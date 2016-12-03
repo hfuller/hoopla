@@ -19,7 +19,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			30
+#define VERSION			31
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -131,13 +131,18 @@ class StripHandler : public LightHandler {
   private:
     HueLightInfo _info;
   public:
+    StripHandler() {
+      //Give some values in the constructor so, when some Hue API user
+	  //asks for our current status, it looks like we are lit with some color.
+	  _info.on = true;
+	  _info.brightness = 200;
+    }
+
     void handleQuery(int lightNumber, HueLightInfo newInfo, aJsonObject* raw) {
-      // define the effect to apply, in this case linear blend
       CHSV newColor = getCHSV(newInfo.hue, newInfo.saturation, newInfo.brightness);
       CHSV originalColor = getCHSV(leds[lightNumber]);
       _info = newInfo;
 
-      // cancel colorloop if one is running
       if (newInfo.on)
       {
         aJsonObject* pattern = aJson.getObjectItem(raw, "pattern");
@@ -179,7 +184,10 @@ class StripHandler : public LightHandler {
       }
     }
 
-    HueLightInfo getInfo(int lightNumber) { return _info; }
+    HueLightInfo getInfo(int lightNumber) {
+      //TODO: Fill in this handler to return our actual color, or something.
+      return _info;
+    }
 };
 
 
