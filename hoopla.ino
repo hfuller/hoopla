@@ -14,7 +14,12 @@
 #include <FS.h>
 #include <EEPROM.h>
 
-#define VERSION			26
+//Hue emulation
+#include "SSDP.h"
+#include "LightService.h"
+#include <aJSON.h>
+
+#define VERSION			28
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -117,6 +122,61 @@ void handleNotFound();
 boolean captivePortal();
 boolean isIp(String str);
 String toStringIp(IPAddress ip);
+CHSV getCHSV(int hue, int sat, int bri);
+CHSV getCHSV(const CRGB& color);
+
+//Hue emulation handler
+class StripHandler : public LightHandler {
+  private:
+    HueLightInfo _info;
+  public:
+    void handleQuery(int lightNumber, HueLightInfo newInfo, aJsonObject* raw) {
+      // define the effect to apply, in this case linear blend
+      CHSV newColor = getCHSV(newInfo.hue, newInfo.saturation, newInfo.brightness);
+      CHSV originalColor = getCHSV(leds[lightNumber]);
+      _info = newInfo;
+
+      // cancel colorloop if one is running
+      if (newInfo.on)
+      {
+        aJsonObject* pattern = aJson.getObjectItem(raw, "pattern");
+        if (_info.effect == EFFECT_COLORLOOP) {
+          Serial.println("[emhue] Effect was set to color loop");
+          return;
+        } else if (pattern) {
+          // pattern is an array of color settings objects
+          // apply to first pattern_len lights
+          int pattern_len = aJson.getArraySize(pattern);
+          for (int i = 0; i < pattern_len && i < numpixels; i++) {
+            aJsonObject* elem = aJson.getArrayItem(pattern, i);
+            HueLightInfo elemInfo;
+            parseHueLightInfo(newInfo, elem, &elemInfo);
+            int num_patterns = ((numpixels - i - 1) / pattern_len) + 1;
+            int brightness = elemInfo.brightness;
+            if (!elemInfo.on) {
+              brightness = 0;
+            }
+            for (int n = 0; n < num_patterns; n++) {
+              int light_index = n * pattern_len + i;
+              // no fade for patterns
+              leds[light_index] = CHSV(elemInfo.hue, elemInfo.saturation, brightness);
+            }
+          }
+          return;
+        }
+        color = newColor;
+        effect = 3; //SolidAll
+      }
+      else
+      {
+        color = CRGB::Black;
+		effect = 3; //SolidAll
+      }
+    }
+
+    HueLightInfo getInfo(int lightNumber) { return _info; }
+};
+
 
 
 void setup() {
@@ -297,6 +357,11 @@ void setup() {
 		delay(0);
 	});
 
+	Serial.println("[start] Setting up Philips Hue emulation");
+	LightService.begin(&server);
+	LightService.setLightsAvailable(1);
+	LightService.setLightHandler(0, new StripHandler());
+
 	Serial.println("[start] starting http");
 	server.on("/style.css", handleStyle);
 	server.on("/", handleRoot);
@@ -358,6 +423,7 @@ void loop() {
 	ArduinoOTA.handle();
 	dnsServer.processNextRequest();
 	server.handleClient();
+	LightService.update();
 	
 	EVERY_N_MILLISECONDS(1000) {
 
@@ -908,3 +974,45 @@ String toStringIp(IPAddress ip) {
   return res;
 }
 
+CHSV getCHSV(int hue, int sat, int bri) {
+  float H, S, B;
+  H = ((float)hue) / 182.04 / 360.0;
+  S = ((float)sat) / COLOR_SATURATION;
+  B = ((float)bri) / COLOR_SATURATION;
+  return CHSV(H, S, B);
+}
+CHSV getCHSV(const CRGB& color) { //from neopixelbus
+    // convert colors to float between (0.0 - 1.0)
+    float r = color.r / 255.0f;
+    float g = color.g / 255.0f;
+    float b = color.b / 255.0f;
+
+    float max = (r > g && r > b) ? r : (g > b) ? g : b;
+    float min = (r < g && r < b) ? r : (g < b) ? g : b;
+
+    float d = max - min;
+
+    float h = 0.0; 
+    float v = max;
+    float s = (v == 0.0f) ? 0 : (d / v);
+
+    if (d != 0.0f)
+    {
+        if (r == max)
+        {
+            h = (g - b) / d + (g < b ? 6.0f : 0.0f);
+        }
+        else if (g == max)
+        {
+            h = (b - r) / d + 2.0f;
+        }
+        else
+        {
+            h = (r - g) / d + 4.0f;
+        }
+        h /= 6.0f;
+    }
+
+
+    return CHSV(h,s,v);
+}
