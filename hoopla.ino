@@ -987,10 +987,16 @@ void handleSetupWifiPost() {
 void handleSetupLedsPost() {
 	Serial.print("[httpd] LED settings post. ");
 	EEPROM.begin(256);
-	EEPROM.write(1, server.arg("hardware_type").toInt());
+
+	EEPROM.write(1, server.arg("hardware_type").toInt());	
 	Serial.print(EEPROM.read(1)); Serial.print("->1 ");
-	EEPROM.write(2, server.arg("numpixels").toInt());
+
+	numpixels = server.arg("numpixels").toInt();
+	EEPROM.write(2, (numpixels>>8) & 0xFF);   //number of pixels (MSB)
+	EEPROM.write(3, numpixels & 0xFF); //number of pixels (LSB)
 	Serial.print(EEPROM.read(2)); Serial.print("->2 ");
+	Serial.print(EEPROM.read(3)); Serial.print("->3 ");
+
 	EEPROM.end(); //write it out on an ESP
 	server.sendHeader("Location", "/?saved", true);
 	server.send ( 302, "text/plain", "");
