@@ -251,7 +251,7 @@ void setup() {
 		hardwareType = 0;
 	}
 	numpixels = (EEPROM.read(2)*256)+(EEPROM.read(3)); //math devilry
-	if ( numpixels > 1000 ) { //absurd
+	if ( numpixels > 300 ) { //absurd
 		Serial.println("[start] Resetting number of pixels");
 		EEPROM.write(2, 0);   //number of pixels (MSB)
 		EEPROM.write(3, 100); //number of pixels (LSB)
