@@ -3,7 +3,7 @@
 NAME="hoopla-devkit"
 
 #terrible build script
-~/Downloads/arduino-1.6.7/arduino hoopla.ino
+~/Downloads/arduino-1.*/arduino hoopla.ino
 echo    "===================="
 #read -p "hit return to upload " && 
 curl -vF "image=@hoopla.ino.nodemcu.bin" http://$NAME/update
