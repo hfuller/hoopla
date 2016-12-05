@@ -600,9 +600,12 @@ void runLeds() {
 //EFFECTS
 
 void runFill(CRGB dest) {
+	/*
 	for ( int i=0; i<numpixels; i++ ) {
 		leds[i] = dest;
 	}
+	*/
+	fill_solid(leds, numpixels, dest);
 }
 void runFill() {
 	runFill(CRGB::Black);
