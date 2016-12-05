@@ -19,7 +19,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			31
+#define VERSION			32
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -118,7 +118,8 @@ void handleDebugDisconnect();
 void handleEffectSave();
 void handleStyle();
 void handleSetup();
-void handleSetupSave();
+void handleSetupWifiPost();
+void handleSetupLedsPost();
 void handleNotFound();
 boolean captivePortal();
 boolean isIp(String str);
@@ -376,10 +377,16 @@ void setup() {
 	server.on("/", handleRoot);
 	server.on("/effect/save", handleEffectSave);
 	server.on("/setup", handleSetup);
-	server.on("/setup/save", handleSetupSave);
+	server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
+	server.on("/setup/leds", HTTP_POST, handleSetupLedsPost);
 	server.on("/debug", handleDebug);
 	server.on("/debug/reset", handleDebugReset);
 	server.on("/debug/disconnect", handleDebugDisconnect);
+	server.on("/version.json", [&](){
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "text/html", String(VERSION));
+		server.client().stop();
+	});
 	server.onNotFound ( handleNotFound );
 	server.begin(); // Web server start
 
@@ -761,49 +768,48 @@ void SetupRandomPalette() {
 
 
 //HTTP STUFF borrowed from https://github.com/esp8266/Arduino/blob/master/libraries/DNSServer/examples/CaptivePortalAdvanced/CaptivePortalAdvanced.ino
-const char * header = "\
-<!DOCTYPE html>\
-<html>\
-<head>\
-<title>hoopla</title>\
-<link rel='stylesheet' href='/style.css'>\
-<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />\
-</head>\
-<body>\
-<div id='top'>\
-	<span id='title'>hoopla</span>\
-	<a href='/'>Controls</a>\
-	<a href='/setup'>Setup</a>\
-	<a href='/debug'>Debug</a>\
-</div>\
-";
+const char * header = R"(<!DOCTYPE html>
+<html>
+<head>
+<title>hoopla</title>
+<link rel="stylesheet" href="/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+</head>
+<body>
+<div id="top">
+	<span id="title">hoopla</span>
+	<a href="/">Controls</a>
+	<a href="/setup">Setup</a>
+	<a href="/debug">Debug</a>
+</div>
+)";
 
 //Boring files
 void handleStyle() {
-	server.send(200, "text/css","\
-		html {\
-			font-family:sans-serif;\
-			background-color:black;\
-			color: #e0e0e0;\
-		}\
-		div {\
-			background-color: #202020;\
-		}\
-		h1,h2,h3,h4,h5 {\
-			color: #e02020;\
-		}\
-		a {\
-			color: #5050f0;\
-		}\
-		form * {\
-			display:block;\
-			border: 1px solid #000;\
-			font-size: 14px;\
-			color: #fff;\
-			background: #444;\
-			padding: 5px;\
-		}\
-	");
+	server.send(200, "text/css",R"(
+		html {
+			font-family:sans-serif;
+			background-color:black;
+			color: #e0e0e0;
+		}
+		div {
+			background-color: #202020;
+		}
+		h1,h2,h3,h4,h5 {
+			color: #e02020;
+		}
+		a {
+			color: #5050f0;
+		}
+		form * {
+			display:block;
+			border: 1px solid #000;
+			font-size: 14px;
+			color: #fff;
+			background: #444;
+			padding: 5px;
+		}
+	)");
 }
 
 /** Handle root or redirect to captive portal */
@@ -935,30 +941,58 @@ void handleSetup() {
   server.sendContent(String() + "\
 		</table>\
 		<h4>Connect to a network</h4>\
-		<form method='POST' action='/setup/save'>\
+		<form method='POST' action='/setup/wifi'>\
 			<input type='text' id='ssidinput' placeholder='network' value='" + String(WiFi.SSID()) + "' name='n'>\
 			<input type='password' placeholder='password' value='" + String(WiFi.psk()) + "' name='p'>\
 			<button type='submit'>Save and Connect</button>\
 		</form>\
   ");
+  server.sendContent(R"(
+<h4>LED setup</h4>
+<form method="POST" action="/setup/leds">
+	LED type:
+	<select name="hardware_type" id="hardware_type">
+		<option value="0">Custom setup from config.h (set at build)</option>
+		<option value="1">NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
+		<option value="2">NeoPixels on GPIO5(D1) (Makers Local 256; Synapse Wireless)</option>
+		<option value="3">DotStars on GPIO0(D3)/GPIO2(D4) (JC/JB Hoop)</option>
+	</select>
+	<input name="numpixels" placeholder="Number of LEDs">
+	<button type="submit">Save</button>
+</form>
+  )");
   server.client().stop(); // Stop is needed because we sent no content length
 }
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
-void handleSetupSave() {
+void handleSetupWifiPost() {
   Serial.print("[httpd]  wifi save. ");
   server.arg("n").toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
   server.arg("p").toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
   Serial.print("ssid: "); Serial.print(ssidTemp);
   Serial.print(" pass: "); Serial.println(passwordTemp);
-  doConnect = true;
-  WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
   server.sendHeader("Location", "/?saved", true);
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "-1");
   server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
   server.client().stop(); // Stop is needed because we sent no content length
+  doConnect = true;
+  WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
+}
+
+void handleSetupLedsPost() {
+	Serial.print("[httpd] LED settings post. ");
+	EEPROM.begin(256);
+	EEPROM.write(1, server.arg("hardware_type").toInt());
+	Serial.print(EEPROM.read(1)); Serial.print("->1 ");
+	EEPROM.write(2, server.arg("numpixels").toInt());
+	Serial.print(EEPROM.read(2)); Serial.print("->2 ");
+	EEPROM.end(); //write it out on an ESP
+	server.sendHeader("Location", "/?saved", true);
+	server.send ( 302, "text/plain", "");
+	server.client().stop();
+	Serial.println("done. "); 
 }
 
 void handleNotFound() {
