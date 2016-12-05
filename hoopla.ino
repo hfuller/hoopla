@@ -480,10 +480,12 @@ void loop() {
 		#ifdef DEBUG
 		Serial.print("[Wi-Fi] ");
 		if ( WiFi.status() == WL_CONNECTED ) {
-			//we are connected
-			Serial.print("[Wi-Fi] Client: "); Serial.print(WiFi.SSID());
-			Serial.print(" as "); Serial.print(WiFi.localIP());
-			Serial.print(" at "); Serial.println(WiFi.RSSI());
+			//we are connected, presumably.
+			Serial.print("WL_CONNECTED ");
+			if ( WiFi.localIP() == IPAddress(0,0,0,0) ) {
+				//the SDK claims we are associated but we are totally not
+				doConnect = true;
+			}
 		} else if ( WiFi.status() == WL_IDLE_STATUS ) {
 			Serial.print("WL_IDLE_STATUS ");
 		} else {
@@ -987,7 +989,9 @@ void handleSetupWifiPost() {
   server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
   server.client().stop(); // Stop is needed because we sent no content length
   doConnect = true;
-  WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
+
+  //Commenting this out because the 'doConnect' process will do it.
+  //WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
 }
 
 void handleSetupLedsPost() {
