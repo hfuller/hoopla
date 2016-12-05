@@ -478,16 +478,20 @@ void loop() {
 		//do Wi-Fi stuff
 
 		#ifdef DEBUG
+		Serial.print("[Wi-Fi] ");
 		if ( WiFi.status() == WL_CONNECTED ) {
 			//we are connected
 			Serial.print("[Wi-Fi] Client: "); Serial.print(WiFi.SSID());
 			Serial.print(" as "); Serial.print(WiFi.localIP());
 			Serial.print(" at "); Serial.println(WiFi.RSSI());
 		} else if ( WiFi.status() == WL_IDLE_STATUS ) {
-			Serial.print("[Wi-Fi] Associating to "); Serial.println(WiFi.SSID());
+			Serial.print("WL_IDLE_STATUS ");
 		} else {
-			Serial.print("[Wi-Fi] No association to "); Serial.println(WiFi.SSID());
+			Serial.print("(unknown state) ");
 		}
+		Serial.print(WiFi.SSID());
+		Serial.print(" as "); Serial.print(WiFi.localIP());
+		Serial.print(" at "); Serial.println(WiFi.RSSI());
 		#endif /*DEBUG*/
 
 		if ( doConnect ) { //we have a pending connect attempt from the config subsystem
