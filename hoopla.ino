@@ -295,7 +295,9 @@ void setup() {
 	currentBlending = LINEARBLEND;
 
 	color = CRGB::Orange; runLeds();
-	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID());
+	Serial.print("[start] Attempting to associate (STA) to "); Serial.print(WiFi.SSID()); Serial.print(" with key: "); Serial.println(WiFi.psk());
+	WiFi.SSID().toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
+	WiFi.psk().toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
 	lastWirelessChange = millis();
 	WiFi.mode(WIFI_STA);
 	WiFi.setAutoReconnect(false);
