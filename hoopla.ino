@@ -497,21 +497,13 @@ void loop() {
 		Serial.print(" at "); Serial.println(WiFi.RSSI());
 		#endif /*DEBUG*/
 
-		if ( doConnect ) { //we have a pending connect attempt from the config subsystem
-			Serial.println("[Wi-Fi] Trying to associate to AP due to config change");
-			isAP = false;
-			WiFi.disconnect();
-			WiFi.mode(WIFI_STA);
-			WiFi.begin(ssidTemp,passwordTemp);
-			doConnect = false; //shouldn't need this but sometimes we do... if WiFi.status() isn't updated by the underlying libs
-			lastWirelessChange = millis();
-			doRestartServices = true; //restart OTA
-		}
 		if ( (millis() - lastWirelessChange) > 60000 ) {
 			//We tried to associate to wireless over 60 seconds ago.
-			if ( WiFi.status() != WL_CONNECTED && !isAP ) { //We were connected for at least a minute, but we must have lost connection.
-				lastWirelessChange = millis();
-				WiFi.reconnect();
+			if ( ( WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0,0,0,0) ) && !isAP ) {
+				//We were connected for at least a minute, but we must have lost connection.
+				//In the first case, the SDK reports we are disconnected.
+				//In the second case, the SDK claims we are associated but we are totally not	
+				doConnect = true;
 			}
 		} else if ( (millis() - lastWirelessChange) > 15000 ) {
 			//We tried to associate to wireless somewhere between 15 and 60 seconds ago.
@@ -525,6 +517,7 @@ void loop() {
 				Serial.print("[Wi-Fi] AP started. I am "); Serial.println(WiFi.softAPIP());
 				lastWirelessChange = millis();
 				isAP = true;
+				doRestartServices = true;
 			}
 			if ( doRestartServices ) {
 				Serial.println("[Wi-Fi] Restarting services due to Wi-Fi state change");
@@ -539,6 +532,17 @@ void loop() {
 
 				doRestartServices = false;
 			}
+		}
+
+		if ( doConnect ) { //we have a pending connect attempt from the config subsystem
+			Serial.println("[Wi-Fi] Restarting wireless");
+			isAP = false;
+			WiFi.disconnect();
+			WiFi.mode(WIFI_STA);
+			WiFi.begin(ssidTemp,passwordTemp);
+			doConnect = false; //shouldn't need this but sometimes we do... if WiFi.status() isn't updated by the underlying libs
+			lastWirelessChange = millis();
+			doRestartServices = true; //restart OTA
 		}
 
 	}
