@@ -335,7 +335,7 @@ void setup() {
 			effect = 2;
 			color = CRGB::OrangeRed;
 
-			doRestartServices = true;
+			//doRestartServices = true; //why would we do this when we are about to reboot anyway
 			WiFiUDP::stopAll();
 
 			uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
@@ -483,11 +483,12 @@ void loop() {
 			//we are connected, presumably.
 			Serial.print("WL_CONNECTED ");
 			if ( WiFi.localIP() == IPAddress(0,0,0,0) ) {
-				//the SDK claims we are associated but we are totally not
 				doConnect = true;
 			}
 		} else if ( WiFi.status() == WL_IDLE_STATUS ) {
 			Serial.print("WL_IDLE_STATUS ");
+		} else if ( WiFi.status() == WL_DISCONNECTED ) {
+			Serial.print("WL_DISCONNECTED ");
 		} else {
 			Serial.print("(unknown state) ");
 		}
