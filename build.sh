@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-NAME="hoopla-devkit"
+NAME="$1"
 
 #terrible build script
 ~/Downloads/arduino-1.*/arduino hoopla.ino
