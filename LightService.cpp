@@ -245,6 +245,15 @@ void sendSuccess(String id, String value) {
   sendJson(search);
 }
 
+void sendSuccess(String value) {
+  aJsonObject *search = aJson.createArray();
+  aJsonObject *container = aJson.createObject();
+  aJson.addItemToArray(search, container);
+  aJsonObject *succeed = aJson.createObject();
+  aJson.addStringToObject(container, "success", value.c_str());
+  sendJson(search);
+}
+
 void sendUpdated() {
   httpServer->send(200, "text/plain", "Updated.");
 }
@@ -323,6 +332,7 @@ void addLightJson(aJsonObject* root, int numberOfTheLight, LightHandler *lightHa
   aJson.addItemToObject(root, lightName.c_str(), light = aJson.createObject());
   aJson.addStringToObject(light, "type", "Extended color light"); // type of lamp (all "Extended colour light" for now)
   aJson.addStringToObject(light, "name",  ("Hue LightStrips " + (String) (numberOfTheLight + 1)).c_str()); // // the name as set through the web UI or app
+  aJson.addStringToObject(light, "uniqueid",  ("AA:BB:CC:DD:EE:FF:00:11-" + (String) (numberOfTheLight + 1)).c_str());
   aJson.addStringToObject(light, "modelid", "LST001"); // the model number
   aJsonObject *state;
   aJson.addItemToObject(light, "state", state = aJson.createObject());
@@ -362,7 +372,7 @@ void addConfigJson(aJsonObject *root)
   aJsonObject *whitelist;
   aJson.addItemToObject(root, "whitelist", whitelist = aJson.createObject());
   aJsonObject *whitelistFirstEntry;
-  aJson.addItemToObject(whitelist, client.c_str(), whitelistFirstEntry = aJson.createObject());
+  aJson.addItemToObject(whitelist, "api", whitelistFirstEntry = aJson.createObject());
   aJson.addStringToObject(whitelistFirstEntry, "name", "clientname#devicename");
   aJsonObject *swupdate;
   aJson.addItemToObject(root, "swupdate", swupdate = aJson.createObject());
@@ -524,9 +534,33 @@ class LightGroup {
       }
       return object;
     }
+    aJsonObject *getSceneJson() {
+      aJsonObject *object = aJson.createObject();
+      aJson.addStringToObject(object, "name", name.c_str());
+      aJson.addStringToObject(object, "owner", "api");
+      aJson.addStringToObject(object, "picture", "");
+      aJson.addStringToObject(object, "lastupdated", "");
+      aJson.addBooleanToObject(object, "recycle", false);
+      aJson.addBooleanToObject(object, "locked", false);
+      aJson.addNumberToObject(object, "version", 2);
+      aJsonObject *lightsArray = aJson.createArray();
+      aJson.addItemToObject(object, "lights", lightsArray);
+      for (int i = 0; i < 16; i++) {
+        if (!((1 << i) & lights)) {
+          continue;
+        }
+        // add light to list
+        String lightNum = "";
+        lightNum += (i + 1);
+        aJson.addItemToArray(lightsArray, aJson.createItem(lightNum.c_str()));
+      }
+      return object;
+    }
     unsigned int getLightMask() {
       return lights;
     }
+    // only used for scenes
+    String id;
   private:
     String name;
     // use unsigned int to hold members of this group. 2 bytes -> supports up to 16 lights
@@ -582,7 +616,7 @@ void groupCreationHandler() {
   }
 }
 
-void groupListingHandler() {
+aJsonObject *getGroupJson() {
   // iterate over groups and serialize
   aJsonObject *root = aJson.createObject();
   for (int i = 0; i < 16; i++) {
@@ -592,7 +626,11 @@ void groupListingHandler() {
       aJson.addItemToObject(root, sIndex.c_str(), lightGroups[i]->getJson());
     }
   }
-  sendJson(root);
+  return root;
+}
+
+void groupListingHandler() {
+  sendJson(getGroupJson());
 }
 
 void groupsHandler(String user, String uri) {
@@ -660,9 +698,14 @@ void groupsHandler(String user, String uri) {
         updateGroupSlot(groupNum, httpServer->arg("plain"));
         sendUpdated();
         break;
-      case HTTP_DELETE:
+      case HTTP_DELETE: {
         updateGroupSlot(groupNum, "");
+        String message = "/groups/";
+        message += (groupNum + 1);
+        message += " deleted";
+        sendSuccess(message);
         break;
+      }
       default:
         sendError(4, "/api/" + user + "/groups", "Group method not supported");
         break;
@@ -688,25 +731,179 @@ void groupsHandler(String user, String uri) {
   }
 }
 
-void scenesHandler(String user, String uri) {
-  uri = trimSlash(uri.substring(6));
-  if (uri == "" && httpServer->method() == HTTP_GET) {
-    httpServer->send(200, "text/plain", "{}");
+LightGroup *lightScenes[16] = {nullptr, };
+
+int findSceneIndex(String id) {
+  int index = -1;
+  for (int i = 0; i < 16; i++) {
+    LightGroup *scene = lightScenes[i];
+    if (scene) {
+      if (scene->id == id) {
+        return i;
+      }
+    } else if (index == -1) {
+      index = i;
+    }
+  }
+  return index;
+}
+
+bool updateSceneSlot(int slot, String id, String body) {
+  aJsonObject *root;
+  if (body != "") {
+    Serial.print("JSON Body:");
+    Serial.println(body);
+    root = validateGroupCreateBody(body);
+  }
+  if (!root && body != "") {
+    // throw error bad body
+    sendError(2, "scenes/" + (slot + 1), "Bad JSON body");
+    return true;
+  }
+  if (lightScenes[slot]) {
+    delete lightScenes[slot];
+    lightScenes[slot] = nullptr;
+  }
+  if (body != "") {
+    lightScenes[slot] = new LightGroup(root);
+    aJson.deleteItem(root);
+  }
+  return false;
+}
+
+void sceneCreationHandler(String id) {
+  int sceneIndex = findSceneIndex(id);
+  // handle scene creation
+  // find first available scene slot
+  if (sceneIndex == -1) {
+    // throw error no new scenes allowed
+    sendError(301, "scenes", "Scenes table full");
     return;
   }
-  // no part of /api/user/scenes is supported, so all methods are unsupported
-  sendError(4, "/api/" + user + "/" + uri, "Method not supported for scenes");
+  // updateSceneSlot sends failure messages
+  if (!updateSceneSlot(sceneIndex, id, httpServer->arg("plain"))) {
+    if (id == "") {
+      id = String(sceneIndex);
+    }
+    lightScenes[sceneIndex]->id = id;
+    sendSuccess("id", id);
+    return;
+  }
+}
+
+aJsonObject *getSceneJson() {
+  // iterate over groups and serialize
+  aJsonObject *root = aJson.createObject();
+  for (int i = 0; i < 16; i++) {
+    if (lightScenes[i]) {
+      aJson.addItemToObject(root, lightScenes[i]->id.c_str(), lightScenes[i]->getSceneJson());
+    }
+  }
+  return root;
+}
+
+void sceneListingHandler() {
+  sendJson(getSceneJson());
+}
+
+LightGroup *findScene(String id) {
+  for (int i = 0; i < 16; i++) {
+    LightGroup *scene = lightScenes[i];
+    if (scene) {
+      if (scene->id == id) {
+        return scene;
+      }
+    }
+  }
+  return nullptr;
+}
+
+void scenesHandler(String user, String uri) {
+  uri = trimSlash(uri.substring(6));
+  if (uri == "") {
+    switch (httpServer->method()) {
+      case HTTP_GET:
+        sceneListingHandler();
+        break;
+      case HTTP_POST:
+        sceneCreationHandler("");
+        break;
+      default:
+        sendError(4, "/api/" + user + "/scenes", "Scene method not supported");
+        break;
+    }
+    return;
+  }
+
+  int nextSlash = uri.indexOf("/");
+  String sceneId;
+  if (nextSlash == -1) {
+    sceneId = uri;
+    uri = "";
+  } else {
+    sceneId = uri.substring(0, nextSlash);
+    uri = trimSlash(uri.substring(nextSlash));
+  }
+  LightGroup *scene = findScene(sceneId);
+
+  if (uri == "") {
+    switch (httpServer->method()) {
+      case HTTP_GET:
+        if (scene) {
+          sendJson(scene->getSceneJson());
+        } else {
+          sendError(3, "/scenes/"+sceneId, "Cannot retrieve scene that does not exist");
+        }
+        break;
+      case HTTP_PUT:
+        // validate body, delete old group, create new group
+        sceneCreationHandler(sceneId);
+	      // XXX not a valid response according to API
+        sendUpdated();
+        break;
+      case HTTP_DELETE: {
+        if (scene) {
+          updateSceneSlot(findSceneIndex(sceneId), sceneId, "");
+        } else {
+          sendError(3, "/scenes/"+sceneId, "Cannot delete scene that does not exist");
+        }
+        String message = "/scenes/";
+        message += sceneId;
+        message += " deleted";
+        sendSuccess(message);
+        break;
+      }
+      default: {
+        String path = "/api/";
+        path += user;
+        path += "/scenes";
+        sendError(4, path, "Scene method not supported");
+        break;
+      }
+    }
+    return;
+  }
+
+  if (uri.startsWith("lightstates/") || uri.startsWith("lights/")) {
+    uri = uri.substring(12);
+    if (httpServer->method() != HTTP_POST && httpServer->method() != HTTP_PUT) {
+      // error, only POST allowed
+      sendError(4, "/api/" + user + "/scenes/" + sceneId + "/lightstates", "Only PUT and POST supported for scenes/*/light*");
+      return;
+    }
+    // XXX Do something with this information...
+    // XXX not a valid response according to API
+    sendUpdated();
+  }
 }
 
 void wholeConfigHandler(String user, String uri) {
   // Serial.println("Respond with complete json as in https://github.com/probonopd/ESP8266HueEmulator/wiki/Hue-API#get-all-information-about-the-bridge");
   aJsonObject *root;
   root = aJson.createObject();
-  aJsonObject *groups;
   // the default group 0 is never listed
-  aJson.addItemToObject(root, "groups", groups = aJson.createObject());
-  aJsonObject *scenes;
-  aJson.addItemToObject(root, "scenes", scenes = aJson.createObject());
+  aJson.addItemToObject(root, "groups", getGroupJson());
+  aJson.addItemToObject(root, "scenes", getSceneJson());
   aJsonObject *config;
   aJson.addItemToObject(root, "config", config = aJson.createObject());
   addConfigJson(config);
@@ -715,6 +912,10 @@ void wholeConfigHandler(String user, String uri) {
   addLightsJson(lights);
   aJsonObject *schedules;
   aJson.addItemToObject(root, "schedules", schedules = aJson.createObject());
+  aJsonObject *sensors;
+  aJson.addItemToObject(root, "sensors", sensors = aJson.createObject());
+  aJsonObject *rules;
+  aJson.addItemToObject(root, "rules", rules = aJson.createObject());
   sendJson(root);
 }
 
@@ -793,6 +994,12 @@ void handleAllOthers() {
     groupsHandler(user, requestedUri);
   } else if (requestedUri.startsWith("scenes")) {
     scenesHandler(user, requestedUri);
+  } else if (requestedUri.startsWith("sensors")) {
+    httpServer->send(200, "text/plain", "{}");
+  } else if (requestedUri.startsWith("sechedules")) {
+    httpServer->send(200, "text/plain", "{}");
+  } else if (requestedUri.startsWith("rules")) {
+    httpServer->send(200, "text/plain", "{}");
   } else {
     httpServer->send(200, "text/plain", "()");
     Serial.println("FIXME: To be implemented");

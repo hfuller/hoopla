@@ -1,5 +1,5 @@
---- LightService.cpp	2016-12-02 22:04:50.872906837 -0600
-+++ /home/hunter/Arduino/hoopla/LightService.cpp	2016-12-02 23:55:44.496801984 -0600
+--- LightService.cpp.orig	2016-12-05 19:58:18.545072973 -0600
++++ LightService.cpp	2016-12-05 20:03:40.801067895 -0600
 @@ -16,7 +16,7 @@
  // The username of the client (currently we authorize all clients simulating a pressed button on the bridge)
  String client;
@@ -54,7 +54,7 @@
    free(msgStr);
  }
  
-@@ -249,7 +246,7 @@
+@@ -258,7 +255,7 @@
  }
  
  void sendUpdated() {
@@ -63,7 +63,7 @@
  }
  
  bool parseHueLightInfo(HueLightInfo currentInfo, aJsonObject *parsedRoot, HueLightInfo *newInfo) {
-@@ -403,7 +400,7 @@
+@@ -413,7 +410,7 @@
  void lightsHandler(String user, String uri) {
    uri = trimSlash(uri.substring(6));
    if (uri == "") {
@@ -72,7 +72,7 @@
        case HTTP_GET: {
            // dump existing lights
            aJsonObject *lights = aJson.createObject();
-@@ -433,8 +430,8 @@
+@@ -443,8 +440,8 @@
      int numberOfTheLight = atoi(lightText.c_str()) - 1;
  
      Serial.print("JSON Body:");
@@ -83,7 +83,7 @@
      LightHandler *handler = LightService.getLightHandler(numberOfTheLight);
      if (!handler) {
        sendError(3, uri, "Requested light not available");
-@@ -449,7 +446,7 @@
+@@ -459,7 +456,7 @@
        }
        handler->handleQuery(numberOfTheLight, newInfo, parsedRoot);
        aJson.deleteItem(parsedRoot);
@@ -92,7 +92,7 @@
        // unparseable json
        sendError(2, "groups/0/action", "Bad JSON body in request");
        return;
-@@ -474,8 +471,8 @@
+@@ -484,8 +481,8 @@
  
  void applyConfigToLightMask(unsigned int lights) {
    Serial.print("JSON Body:");
@@ -103,7 +103,7 @@
    if (parsedRoot) {
      for (int i = 0; i < LightService.getLightsAvailable(); i++) {
        LightHandler *handler = LightService.getLightHandler(i);
-@@ -489,7 +486,7 @@
+@@ -499,7 +496,7 @@
  
      // As per the spec, the response can be "Updated." for memory-constrained devices
      sendUpdated();
@@ -112,7 +112,7 @@
      // unparseable json
      sendError(2, "groups/0/action", "Bad JSON body in request");
    }
-@@ -578,7 +575,7 @@
+@@ -612,7 +609,7 @@
      sendError(301, "groups", "Groups table full");
      return;
    }
@@ -121,7 +121,7 @@
      String slot = "";
      slot += (availableSlot + 1);
      sendSuccess("id", slot);
-@@ -601,7 +598,7 @@
+@@ -639,7 +636,7 @@
  void groupsHandler(String user, String uri) {
    uri = trimSlash(uri.substring(6));
    if (uri == "") {
@@ -130,7 +130,7 @@
        case HTTP_GET:
          groupListingHandler();
          break;
-@@ -637,7 +634,7 @@
+@@ -675,7 +672,7 @@
    }
  
    if (uri == "") {
@@ -139,7 +139,7 @@
        case HTTP_GET:
          if (groupNum != -1) {
            sendJson(lightGroups[groupNum]->getJson());
-@@ -660,7 +657,7 @@
+@@ -698,7 +695,7 @@
          break;
        case HTTP_PUT:
          // validate body, delete old group, create new group
@@ -147,8 +147,8 @@
 +        updateGroupSlot(groupNum, httpServer->arg("plain"));
          sendUpdated();
          break;
-       case HTTP_DELETE:
-@@ -674,7 +671,7 @@
+       case HTTP_DELETE: {
+@@ -717,7 +714,7 @@
    }
  
    if (uri == "action") {
@@ -157,18 +157,43 @@
        // error, only PUT allowed
        sendError(4, "/api/" + user + "/groups/" + groupNum + "/action", "Only PUT supported for groups/*/action");
        return;
-@@ -693,8 +690,8 @@
- 
- void scenesHandler(String user, String uri) {
-   uri = trimSlash(uri.substring(6));
--  if (uri == "" && HTTP.method() == HTTP_GET) {
--    HTTP.send(200, "text/plain", "{}");
-+  if (uri == "" && httpServer->method() == HTTP_GET) {
-+    httpServer->send(200, "text/plain", "{}");
+@@ -784,7 +781,7 @@
      return;
    }
-   // no part of /api/user/scenes is supported, so all methods are unsupported
-@@ -722,9 +719,9 @@
+   // updateSceneSlot sends failure messages
+-  if (!updateSceneSlot(sceneIndex, id, HTTP.arg("plain"))) {
++  if (!updateSceneSlot(sceneIndex, id, httpServer->arg("plain"))) {
+     if (id == "") {
+       id = String(sceneIndex);
+     }
+@@ -824,7 +821,7 @@
+ void scenesHandler(String user, String uri) {
+   uri = trimSlash(uri.substring(6));
+   if (uri == "") {
+-    switch (HTTP.method()) {
++    switch (httpServer->method()) {
+       case HTTP_GET:
+         sceneListingHandler();
+         break;
+@@ -850,7 +847,7 @@
+   LightGroup *scene = findScene(sceneId);
+ 
+   if (uri == "") {
+-    switch (HTTP.method()) {
++    switch (httpServer->method()) {
+       case HTTP_GET:
+         if (scene) {
+           sendJson(scene->getSceneJson());
+@@ -889,7 +886,7 @@
+ 
+   if (uri.startsWith("lightstates/") || uri.startsWith("lights/")) {
+     uri = uri.substring(12);
+-    if (HTTP.method() != HTTP_POST && HTTP.method() != HTTP_PUT) {
++    if (httpServer->method() != HTTP_POST && httpServer->method() != HTTP_PUT) {
+       // error, only POST allowed
+       sendError(4, "/api/" + user + "/scenes/" + sceneId + "/lightstates", "Only PUT and POST supported for scenes/*/light*");
+       return;
+@@ -923,9 +920,9 @@
  }
  
  void descriptionHandler(String user, String uri) {
@@ -180,7 +205,7 @@
    Serial.println(str);
  }
  
-@@ -744,8 +741,8 @@
+@@ -945,8 +942,8 @@
    Serial.print("=== ");
    Serial.println(millis());
    Serial.print("Method: ");
@@ -191,7 +216,7 @@
    Serial.print("requestedUri: ");
    Serial.println(fullUri);
  
-@@ -758,7 +755,7 @@
+@@ -959,7 +956,7 @@
    // make sure /api is there, rip it off along with trailing slash if present
    if (!fullUri.startsWith("api")) {
      // bail, unimplemented
@@ -200,9 +225,18 @@
      Serial.println("FIXME: To be implemented");
      return;
    }
-@@ -797,11 +794,11 @@
+@@ -998,17 +995,17 @@
    } else if (requestedUri.startsWith("scenes")) {
      scenesHandler(user, requestedUri);
+   } else if (requestedUri.startsWith("sensors")) {
+-    HTTP.send(200, "text/plain", "{}");
++    httpServer->send(200, "text/plain", "{}");
+   } else if (requestedUri.startsWith("sechedules")) {
+-    HTTP.send(200, "text/plain", "{}");
++    httpServer->send(200, "text/plain", "{}");
+   } else if (requestedUri.startsWith("rules")) {
+-    HTTP.send(200, "text/plain", "{}");
++    httpServer->send(200, "text/plain", "{}");
    } else {
 -    HTTP.send(200, "text/plain", "()");
 +    httpServer->send(200, "text/plain", "()");
