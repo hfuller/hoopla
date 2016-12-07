@@ -49,13 +49,9 @@ unsigned long lastWirelessChange;
 byte effect = 0;
 CRGB color = CRGB::Teal;
 CRGB nextColor = CRGB::Black;
+CRGBPalette16 currentPalette;
 //BlinkOne/SolidOne
 uint8_t offset = 0; //how many to skip when writing the LED.
-//Colorpal
-CRGBPalette16 currentPalette;
-CRGBPalette16 targetPalette;
-uint8_t maxChanges = 24; 
-TBlendType currentBlending;
 //Confetti
 uint8_t  thisfade = 16;                                        // How quickly does it fade? Lower = slower fade rate.
 int       thishue = 50;                                       // Starting hue.
@@ -96,7 +92,8 @@ bool doRestartServices = true;
 bool doRestartDevice = false;
 bool doEffects = true;
 
-void runColorpal();
+void runFullPalette();
+void runRotatingPalette();
 void runConfetti();
 void runDotBeat();
 void runEaseMe();
@@ -108,8 +105,6 @@ void runFill();
 void runFill(CRGB dest);
 void runSolidOne();
 void runBlinkOne();
-void FillLEDsFromPaletteColors(uint8_t colorIndex);
-void SetupRandomPalette();
 void runLeds();
 void handleRoot();
 void handleDebug();
@@ -289,10 +284,8 @@ void setup() {
 
 	Serial.println("[start] Starting effects");
 	effect = 2; //solid for status indication
-	//Colorpal
+	//Palette
 	currentPalette = LavaColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
-	targetPalette = LavaColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
-	currentBlending = LINEARBLEND;
 
 	color = CRGB::Orange; runLeds();
 	Serial.print("[start] Attempting to associate (STA) to "); Serial.print(WiFi.SSID()); Serial.print(" with key: "); Serial.println(WiFi.psk());
@@ -376,7 +369,50 @@ void setup() {
 
 	Serial.println("[start] starting http");
 	server.on("/style.css", handleStyle);
-	server.on("/", handleRoot);
+	server.on("/", [&](){
+		if (captivePortal()) { // If caprive portal redirect instead of displaying the page.
+			return;
+		}
+		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+		server.sendHeader("Pragma", "no-cache");
+		server.sendHeader("Expires", "-1");
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "text/html", header);
+		server.sendContent(R"(
+			<h1>Controls</h1>
+			<form method="POST" action="/effect/save">
+			<select name="e" id="e">
+				<option value="1">Blink One</option>
+				<option value="2">Solid One</option>
+				<option value="3">Solid All</option>
+				<option value="4">Dot Beat</option>
+				<option value="5">Ease Me</option>
+				<option value="6">FastCirc</option>
+				<option value="7">Confetti 1</option>
+				<option value="8">Confetti 2</option>
+				<option value="9">Confetti 3</option>
+				<option value="10">Rotating Rainbow</option>
+				<option value="11">Juggle 1</option>
+				<option value="12">Juggle 2</option>
+				<option value="13">Juggle 3</option>
+				<option value="14">Lightning</option>
+				<option value="15">Solid Palette: Angry Cloud</option>
+				<option value="16">Rotating Palette: Angry Cloud</option>
+			</select>
+			<button type="submit">Set</button>
+			</form>
+			<script>
+				document.getElementById("e").addEventListener("change", function() {
+					var xhr = new XMLHttpRequest();
+					xhr.open("POST","/effect/save", true);
+					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+					xhr.send("e=" + this.value);
+					xhr.send();
+				});
+			</script>
+		)");
+		server.client().stop(); // Stop is needed because we sent no content length
+	});
 	server.on("/effect/save", handleEffectSave);
 	server.on("/setup", handleSetup);
 	server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
@@ -564,9 +600,6 @@ void runLeds() {
 	*/
 
 	switch (effect) {
-		case 15:
-			runColorpal();
-			break;
 		case 1:
 			runBlinkOne();
 			break;
@@ -601,6 +634,12 @@ void runLeds() {
 		case 14:
 			runLightning();
 			break;
+		case 15:
+			runFullPalette();
+			break;
+		case 16:
+			runRotatingPalette();
+			break;
 		default:
 			Serial.print("[blink] Unknown effect selected: "); Serial.println(effect);
 			delay(10);
@@ -624,14 +663,23 @@ void runFill() {
 	runFill(CRGB::Black);
 }
 	
-void runColorpal() {
+void runFullPalette() {
 	uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
-	FillLEDsFromPaletteColors(beatA);
 
-	//nblendPaletteTowardPalette( currentPalette, targetPalette, maxChanges);
-	EVERY_N_MILLISECONDS(5000) {
-		SetupRandomPalette();
+	fill_palette(leds, numpixels, beatA, 0, currentPalette, 255, LINEARBLEND);
+	
+	/*
+	//uint8_t beatB = beatsin8(30, 10, 20);                       // Delta hue between LED's
+    for (int i = 0; i < numpixels; i++) {
+	    leds[i] = ColorFromPalette(currentPalette, beatA, 255, LINEARBLEND);
+	    //beatA += beatB;
 	}
+	*/
+
+}
+void runRotatingPalette() {
+	uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
+	fill_palette(leds, numpixels, beatA, 6, currentPalette, 255, LINEARBLEND);
 }
 
 void runConfetti() {
@@ -830,46 +878,6 @@ void handleStyle() {
 
 /** Handle root or redirect to captive portal */
 void handleRoot() {
-	if (captivePortal()) { // If caprive portal redirect instead of displaying the page.
-		return;
-	}
-	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-	server.sendHeader("Pragma", "no-cache");
-	server.sendHeader("Expires", "-1");
-	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-	server.send(200, "text/html", header);
-	server.sendContent("\
-		<h1>Controls</h1>\
-		<form method='POST' action='/effect/save'>\
-		<select name='e' id='e'>\
-		<option value='15'>Palette</option>\
-		<option value='4'>Dot Beat</option>\
-		<option value='5'>Ease Me</option>\
-		<option value='6'>FastCirc</option>\
-		<option value='7'>Confetti 1</option>\
-		<option value='8'>Confetti 2</option>\
-		<option value='9'>Confetti 3</option>\
-		<option value='10'>Rotating Rainbow</option>\
-		<option value='11'>Juggle 1</option>\
-		<option value='12'>Juggle 2</option>\
-		<option value='13'>Juggle 3</option>\
-		<option value='14'>Lightning</option>\
-		<option value='1'>Blink One</option>\
-		<option value='2'>Solid One</option>\
-		</select>\
-		<button type='submit'>Set</button>\
-		</form>\
-		<script>\
-		\r\ndocument.getElementById('e').addEventListener('change', function() {\
-		\r\n	var xhr = new XMLHttpRequest();\
-		\r\n	xhr.open('POST','/effect/save', true);\
-		\r\n	xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');\
-		\r\n	xhr.send('e=' + this.value);\
-		\r\n	xhr.send();\
-		\r\n});\
-		</script>\
-	");
-	server.client().stop(); // Stop is needed because we sent no content length
 }
 
 void handleDebug() {
