@@ -122,6 +122,22 @@ String toStringIp(IPAddress ip);
 CHSV getCHSV(int hue, int sat, int bri);
 CHSV getCHSV(const CRGB& color);
 
+const char * header = R"(<!DOCTYPE html>
+<html>
+<head>
+<title>hoopla</title>
+<link rel="stylesheet" href="/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+</head>
+<body>
+<div id="top">
+	<span id="title">hoopla</span>
+	<a href="/">Controls</a>
+	<a href="/setup">Setup</a>
+	<a href="/debug">Debug</a>
+</div>
+)";
+
 //Hue emulation handler
 class StripHandler : public LightHandler {
   private:
@@ -817,36 +833,7 @@ void runSolidOne() {
 
 
 
-//UTILITIES FOR EFFECTS
-
-void FillLEDsFromPaletteColors(uint8_t colorIndex) {
-	//uint8_t beatB = beatsin8(30, 10, 20);                       // Delta hue between LED's
-    for (int i = 0; i < numpixels; i++) {
-	    leds[i] = ColorFromPalette(currentPalette, colorIndex, 255, currentBlending);
-	    //colorIndex += beatB;
-	}
-} //FillLEDsFromPaletteColors()
-void SetupRandomPalette() {
-	targetPalette = CRGBPalette16(CHSV(random8(), 255, 32), CHSV(random8(), random8(64)+192, 255), CHSV(random8(), 255, 32), CHSV(random8(), 255, 255)); 
-} // SetupRandomPalette()
-
-
 //HTTP STUFF borrowed from https://github.com/esp8266/Arduino/blob/master/libraries/DNSServer/examples/CaptivePortalAdvanced/CaptivePortalAdvanced.ino
-const char * header = R"(<!DOCTYPE html>
-<html>
-<head>
-<title>hoopla</title>
-<link rel="stylesheet" href="/style.css">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-</head>
-<body>
-<div id="top">
-	<span id="title">hoopla</span>
-	<a href="/">Controls</a>
-	<a href="/setup">Setup</a>
-	<a href="/debug">Debug</a>
-</div>
-)";
 
 //Boring files
 void handleStyle() {
