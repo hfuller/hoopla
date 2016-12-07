@@ -31,7 +31,7 @@ const char* ssid = "";
 const char* password = "";
 char ssidTemp[32] = "";
 char passwordTemp[32] = "";
-char name[32];
+char devHostName[32];
 char passwordAP[32];
 int numpixels = 1;
 
@@ -222,7 +222,7 @@ void setup() {
 		f.close();
 	}
 	f = SPIFFS.open("/name", "r");
-	f.readStringUntil('\n').toCharArray(name, 32);
+	f.readStringUntil('\n').toCharArray(devHostName, 32);
 	f.close();
 	if ( ! SPIFFS.exists("/psk") ) {
 		Serial.println("[start] Setting empty PSK");
@@ -233,7 +233,7 @@ void setup() {
 	f = SPIFFS.open("/psk", "r");
 	f.readStringUntil('\n').toCharArray(passwordAP, 32);
 	f.close();
-	Serial.print("[start] Hello from "); Serial.println(name);		
+	Serial.print("[start] Hello from "); Serial.println(devHostName);		
 
 	Serial.println("[start] Loading configuration from eeprom");
 	EEPROM.begin(256);
@@ -301,7 +301,7 @@ void setup() {
 	lastWirelessChange = millis();
 	WiFi.mode(WIFI_STA);
 	WiFi.setAutoReconnect(false);
-	WiFi.hostname(name);
+	WiFi.hostname(devHostName);
 	WiFi.begin();
 
 	Serial.print("[start] Starting DNS on "); Serial.println(WiFi.softAPIP());
@@ -397,7 +397,7 @@ void setup() {
 	// Port defaults to 8266
 	//ArduinoOTA.setPort(8266);
 	// Hostname defaults to esp8266-[ChipID]
-	ArduinoOTA.setHostname(name);
+	ArduinoOTA.setHostname(devHostName);
 	// No authentication by default
 	//ArduinoOTA.setPassword((const char *)"123");
 	ArduinoOTA.onStart([]() {
@@ -512,7 +512,7 @@ void loop() {
 				//WiFi.disconnect(); //Don't do this or it will clear the ssid/pass in nvram!!!!!
 				Serial.println("[Wi-Fi] Starting wireless AP");
 				WiFi.mode(WIFI_AP);
-				WiFi.softAP(name,passwordAP);
+				WiFi.softAP(devHostName,passwordAP);
 				delay(100); //reliable IP retrieval.
 				Serial.print("[Wi-Fi] AP started. I am "); Serial.println(WiFi.softAPIP());
 				lastWirelessChange = millis();
@@ -924,7 +924,7 @@ void handleEffectSave() {
 
 /** Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
 boolean captivePortal() {
-  if (!isIp(server.hostHeader()) && server.hostHeader() != (String(name)+".local")) {
+  if (!isIp(server.hostHeader()) && server.hostHeader() != (String(devHostName)+".local")) {
     Serial.println("[httpd] Request redirected to captive portal");
     server.sendHeader("Location", String("http://") + toStringIp(server.client().localIP()), true);
     server.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
