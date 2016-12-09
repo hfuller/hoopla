@@ -6,7 +6,7 @@ NAME="$1"
 ~/Downloads/arduino-1.*/arduino hoopla.ino
 echo    "===================="
 read -p "hit return to upload " && 
-curl -vF "image=@hoopla.ino.nodemcu.bin" http://$NAME/update
+curl -v#F "image=@hoopla.ino.nodemcu.bin" http://$NAME/update
 echo
 
 #echo    "==================="
