@@ -14,6 +14,9 @@
 #include <FS.h>
 #include <EEPROM.h>
 
+//Effects loading
+#include "effects.h"
+
 //Hue emulation
 #include "SSDP.h"
 #include "LightService.h"
@@ -436,6 +439,20 @@ void setup() {
 	server.on("/debug", handleDebug);
 	server.on("/debug/reset", handleDebugReset);
 	server.on("/debug/disconnect", handleDebugDisconnect);
+	server.on("/debug/test", [&](){
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "text/html", "Loading effects... ");
+		Effects effects = Effects();
+		server.sendContent("add result: ");
+		server.sendContent(String(effects.add("Test2", [&](){
+			Serial.println("Test effect 2");
+		})));
+		for ( int i=0; i < effects.getCount(); i++ ) {
+			server.sendContent(effects.get(i).name + ", ");
+		}
+		server.sendContent("done.");
+		server.client().stop();
+	});
 	server.on("/version.json", [&](){
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", String(VERSION));
