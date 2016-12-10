@@ -906,8 +906,7 @@ void handleDebugReset() {
 		OK. Restarting. (Give it up to 30 seconds.)\
 	");
 	server.client().stop();
-	delay(500);
-	ESP.reset();
+	doRestartDevice = true;
 }
 void handleDebugDisconnect() {
 	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
