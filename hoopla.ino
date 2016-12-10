@@ -49,6 +49,7 @@ unsigned long frameCount;
 unsigned long lastWirelessChange;
 
 //EFFECT SHIT
+Effects effects; //lol
 byte effect = 0;
 CRGB color = CRGB::Teal;
 CRGB nextColor = CRGB::Black;
@@ -305,8 +306,11 @@ void setup() {
 	effect = 2; //solid for status indication
 	//Palette
 	currentPalette = LavaColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
-
+	
+	Serial.println("[start] Starting bleeding edge effects loader");
 	color = CRGB::Orange; runLeds();
+	effects = Effects(); //is there an echo in here?
+
 	Serial.print("[start] Attempting to associate (STA) to "); Serial.print(WiFi.SSID()); Serial.print(" with key: "); Serial.println(WiFi.psk());
 	WiFi.SSID().toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
 	WiFi.psk().toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
@@ -417,6 +421,7 @@ void setup() {
 				<option value="14">Lightning</option>
 				<option value="15">Solid Palette: Angry Cloud</option>
 				<option value="16">Rotating Palette: Angry Cloud</option>
+				<option value="100">Event loader subsystem beta</option>
 			</select>
 			<button type="submit">Set</button>
 			</form>
@@ -672,6 +677,10 @@ void runLeds() {
 			break;
 		case 16:
 			runRotatingPalette();
+			break;
+		case 100:
+			Serial.println("Running first effect in effect loader.");
+			effects.get(0).run();
 			break;
 		default:
 			Serial.print("[blink] Unknown effect selected: "); Serial.println(effect);
