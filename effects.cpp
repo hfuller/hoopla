@@ -1,31 +1,32 @@
-#include <Arduino.h>
-#include <functional>
+#include "effects.h"
 
-;
-
-class Effect {
-	public:
-		String name = "Unnamed Effect";
-		std::function<void(void)> run = [](){
-			Serial.println("Running uninitialized effect...");
-		};
-
-	/*
-	Effect(String n, std::function<void(void)> fn) {
-		name = n;
-		run = fn;
+int Effects::add(String name, std::function<void(void)> run) {
+	if ( count >= sizeof(efx) ) {
+		Serial.println("Couldn't add new effect, the pattern is full!");
+		Serial.print("sizeof(efx): "); Serial.print(sizeof(efx));
+		Serial.print(" count: "); Serial.println(count);
+		return -1;
 	}
+	efx[count].name = name;
+	efx[count].run = run;
+	return(count++);
+}
 
-	Effect(){};
-	*/
-};
+Effect Effects::get(int idx) {
+	return efx[idx];
+}
 
-Effect efx[2];
+int Effects::getCount() {
+	return count;
+}
 
-void initEffects() {
-	efx[0].name = "Test Effect";
-	efx[0].run = [](){
+Effects::Effects() {
+	count = 0;
+	Serial.println("[e.cpp] effects object instantiated");
+
+	Serial.print("[e.cpp] add test effect result: ");
+	Serial.println(add("Test Effect", [](){
 		Serial.println("Running test effect!!!");
-	};
+	}));
 }
 
