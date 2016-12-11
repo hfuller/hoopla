@@ -274,7 +274,7 @@ void setup() {
 	color = CRGB::Orange; runLeds();
 	effects = Effects(); //is there an echo in here?
 
-	Serial.print("[start] Attempting to associate (STA) to "); Serial.print(WiFi.SSID()); Serial.print(" with key: "); Serial.println(WiFi.psk());
+	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID()); //Serial.print(" with key: "); Serial.println(WiFi.psk());
 	WiFi.SSID().toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
 	WiFi.psk().toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
 	lastWirelessChange = millis();
@@ -287,7 +287,7 @@ void setup() {
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
 	dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
-	Serial.println("[start] Setting up http firmware uploads");
+	Serial.println("[start] starting http");
 	//the following handler is a hack. sorry
 	server.on("/update", HTTP_GET, [&](){
 		server.sendHeader("Connection", "close");
