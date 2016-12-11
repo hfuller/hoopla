@@ -22,7 +22,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			32
+#define VERSION			33
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -327,9 +327,9 @@ void setup() {
 			Serial.print(upload.totalSize); Serial.printf(" bytes written\r");
 			runLeds();
 
-			offset = ( upload.totalSize / ( 350000 / numpixels ) );
-			if ( offset >= numpixels ) {
-				offset = numpixels-1;
+			intEffectState = ( upload.totalSize / ( 350000 / numpixels ) );
+			if ( intEffectState >= numpixels ) {
+				intEffectState = numpixels-1;
 			}
 
 			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
