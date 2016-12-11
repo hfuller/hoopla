@@ -31,6 +31,9 @@ Effects::Effects() {
 	count = 0;
 	Serial.println("[e.cpp] Loading effects");
 
+	add("Solid All", [](){
+		fill_solid(leds, numpixels, color);
+	});
 	add("Blink One", [](){
 		//intEffectState = where on the strip to blink.
 		EVERY_N_MILLISECONDS(500) {
@@ -48,9 +51,6 @@ Effects::Effects() {
 		//intEffectState = where on the strip to write a solid LED.
 		fill_solid(leds, numpixels, CRGB::Black);
 		leds[intEffectState] = color;
-	});
-	add("Solid All", [](){
-		fill_solid(leds, numpixels, color);
 	});
 	add("Dot Beat", [](){
 		uint8_t count = 0; //Count up to 255 and then reverts to 0
