@@ -16,6 +16,10 @@ int Effects::add(String name, std::function<void(void)> run) {
 }
 
 Effect Effects::get(int idx) {
+	if ( idx >= count ) {
+		Serial.print("[e.cpp] Returning effect 1, as someone tried to get effect "); Serial.print(idx); Serial.print(" but I only have "); Serial.print(count); Serial.println(" effects loaded!");
+		return efx[1];
+	}
 	return efx[idx];
 }
 
