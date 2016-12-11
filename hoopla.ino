@@ -53,6 +53,8 @@ Effects effects; //lol
 byte effect = 0;
 CRGB color = CRGB::Teal;
 CRGB nextColor = CRGB::Black;
+bool boolEffectState; //internal effect state vars follow...
+int intEffectState;
 CRGBPalette16 currentPalette;
 //BlinkOne/SolidOne
 uint8_t offset = 0; //how many to skip when writing the LED.
@@ -637,6 +639,7 @@ void runLeds() {
 	}
 	*/
 
+	/*
 	switch (effect) {
 		case 1:
 			runBlinkOne();
@@ -686,6 +689,9 @@ void runLeds() {
 			Serial.print("[blink] Unknown effect selected: "); Serial.println(effect);
 			delay(10);
 	}
+	*/
+
+	effects.get(effect).run();
 	
 	show_at_max_brightness_for_power(); //FastLED.show();
 
