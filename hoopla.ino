@@ -71,7 +71,6 @@ void handleDebug();
 void handleDebugReset();
 void handleDebugDisconnect();
 void handleEffectSave();
-void handleStyle();
 void handleSetup();
 void handleSetupWifiPost();
 void handleSetupLedsPost();
@@ -353,9 +352,32 @@ void setup() {
 		}
 		delay(0);
 	});
-
-	Serial.println("[start] starting http");
-	server.on("/style.css", handleStyle);
+	server.on("/style.css", [&](){
+		server.send(200, "text/css",R"(
+			html {
+				font-family:sans-serif;
+				background-color:black;
+				color: #e0e0e0;
+			}
+			div {
+				background-color: #202020;
+			}
+			h1,h2,h3,h4,h5 {
+				color: #e02020;
+			}
+			a {
+				color: #5050f0;
+			}
+			form * {
+				display:block;
+				border: 1px solid #000;
+				font-size: 14px;
+				color: #fff;
+				background: #444;
+				padding: 5px;
+			}
+		)");
+	});
 	server.on("/", [&](){
 		if (captivePortal()) { // If caprive portal redirect instead of displaying the page.
 			return;
@@ -603,32 +625,6 @@ void runLeds() {
 //HTTP STUFF borrowed from https://github.com/esp8266/Arduino/blob/master/libraries/DNSServer/examples/CaptivePortalAdvanced/CaptivePortalAdvanced.ino
 
 //Boring files
-void handleStyle() {
-	server.send(200, "text/css",R"(
-		html {
-			font-family:sans-serif;
-			background-color:black;
-			color: #e0e0e0;
-		}
-		div {
-			background-color: #202020;
-		}
-		h1,h2,h3,h4,h5 {
-			color: #e02020;
-		}
-		a {
-			color: #5050f0;
-		}
-		form * {
-			display:block;
-			border: 1px solid #000;
-			font-size: 14px;
-			color: #fff;
-			background: #444;
-			padding: 5px;
-		}
-	)");
-}
 
 /** Handle root or redirect to captive portal */
 void handleRoot() {
