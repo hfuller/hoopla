@@ -28,7 +28,6 @@
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
 
 #define FRAMERATE		60					//how many frames per second to we ideally want to run
-#define MAX_LOAD_MA		400					//how many mA are we allowed to draw, at 5 volts
 
 const char* ssid = "";
 const char* password = "";
@@ -37,6 +36,7 @@ char passwordTemp[32] = "";
 char devHostName[32];
 char passwordAP[32];
 int numpixels = 1;
+int maxLoadMilliamps = 400;
 
 const byte DNS_PORT = 53;
 DNSServer dnsServer;
@@ -274,6 +274,13 @@ void setup() {
 		EEPROM.write(3, 100); //number of pixels (LSB)
 		numpixels = 100;
 	}
+	maxLoadMilliamps = (EEPROM.read(4)*256)+(EEPROM.read(5));
+	if ( maxLoadMilliamps < 400 || maxLoadMilliamps > 20000 ) { //absurd
+		Serial.println("[start] Resetting maximum amperage");
+		maxLoadMilliamps = 400;
+		EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);   //MSB
+		EEPROM.write(5, maxLoadMilliamps & 0xFF); //LSB
+	}
 	EEPROM.end(); //write the "EEPROM" to flash (on an ESP anyway)
 
 	Serial.print("[start] Starting "); Serial.print(numpixels); Serial.print(" ");
@@ -296,7 +303,8 @@ void setup() {
 			break;
 	}
 	Serial.println();
-	FastLED.setMaxPowerInVoltsAndMilliamps(5,MAX_LOAD_MA); //assuming 5V
+	Serial.print("[start] Setting maximum milliamps to "); Serial.println(maxLoadMilliamps);
+	FastLED.setMaxPowerInVoltsAndMilliamps(5,maxLoadMilliamps); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
 	FastLED.setMaxRefreshRate(FRAMERATE);
 	for ( int i=0; i<300; i++ ) {
@@ -1000,6 +1008,7 @@ void handleSetup() {
 		<option value="3">DotStars on GPIO0(D3)/GPIO2(D4) (JC/JB Hoop)</option>
 	</select>
 	<input name="numpixels" placeholder="Number of LEDs">
+	<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw">
 	<button type="submit">Save</button>
 </form>
   )");
@@ -1037,6 +1046,10 @@ void handleSetupLedsPost() {
 	EEPROM.write(3, numpixels & 0xFF); //number of pixels (LSB)
 	Serial.print(EEPROM.read(2)); Serial.print("->2 ");
 	Serial.print(EEPROM.read(3)); Serial.print("->3 ");
+
+	maxLoadMilliamps = server.arg("maxLoadMilliamps").toInt();
+	EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);
+	EEPROM.write(5, maxLoadMilliamps & 0xFF);
 
 	EEPROM.end(); //write it out on an ESP
 	server.sendHeader("Location", "/?saved", true);
