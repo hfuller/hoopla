@@ -94,13 +94,15 @@ Effects::Effects() {
 	
 	});
 	add("Fast Circ", [](){
-		int thiscount = 0;
-		int thisdir = 1;
+		//intEffectState is how far down the cycle we are (out of thisgap).
+		//boolEffectState is whether it's reversed
+
+		int thisdir = ( boolEffectState ? -1 : 1 );
 		int thisgap = 8;
 
 		EVERY_N_MILLISECONDS(50) {
-			thiscount = (thiscount + thisdir)%thisgap;
-			for ( int i=thiscount; i<numpixels; i+=thisgap ) {
+			intEffectState = (intEffectState + thisdir)%thisgap;
+			for ( int i=intEffectState; i<numpixels; i+=thisgap ) {
 				leds[i] = color;
 			}
 		}
