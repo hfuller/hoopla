@@ -22,7 +22,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			33
+#define VERSION			34
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
