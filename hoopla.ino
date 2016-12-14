@@ -50,7 +50,7 @@ unsigned long lastWirelessChange;
 
 //EFFECT SHIT
 Effects effects; //lol
-byte effect = 0;
+byte effect = 2;
 CRGB color = CRGB::Teal;
 CRGB nextColor = CRGB::Black;
 CRGBPalette16 currentPalette;
@@ -146,12 +146,12 @@ class StripHandler : public LightHandler {
         //Serial.print("[emhue] H:"); Serial.print(newColor.h); Serial.print("S:"); Serial.print(newColor.s); Serial.print("V:"); Serial.println(newColor.v);
         color = newColor;
         //Serial.print("[emhue] R:"); Serial.print(color.r); Serial.print("G:"); Serial.print(color.g); Serial.print("B:"); Serial.println(color.b);
-        effect = 3; //SolidAll
+        effect = 0; //SolidAll
       }
       else
       {
         color = CRGB::Black;
-		effect = 3; //SolidAll
+		effect = 0; //SolidAll
       }
     }
 
