@@ -158,17 +158,18 @@ Effects::Effects() {
 	add("Lightning", [](){
 		uint8_t frequency = 50; //controls the interval between strikes
 		uint8_t flashes = 8; //the upper limit of flashes per strike
-		uint8_t flashCounter = 0; //how many flashes have we done already, during this cycle?
-		unsigned long lastFlashTime = 0; //when did we last flash?
-		unsigned long nextFlashDelay = 0; //how long do we wait since the last flash before flashing again?
 		unsigned int dimmer = 1;
-		uint8_t ledstart; // Starting location of a flash
-		uint8_t ledlen; // Length of a flash
+
+		int flashCounter = intEffectState; //how many flashes have we done already, during this cycle?
+		unsigned long lastFlashTime = ulongEffectState; //when did we last flash?
+		unsigned long nextFlashDelay = ulongEffectState2; //how long do we wait since the last flash before flashing again?
+		int ledstart = intEffectState2; // Starting location of a flash
+		int ledlen = intEffectState3; // Length of a flash
 
 		//Serial.print("[ltnng] entered. millis()="); Serial.print(millis()); Serial.print(" lastFlashTime="); Serial.print(lastFlashTime); Serial.print(" nextFlashDelay="); Serial.println(nextFlashDelay);
 		if ( (millis() - lastFlashTime) > nextFlashDelay ) { //time to flash
-			Serial.print("[ltnng] flashCounter: ");
-			Serial.println(flashCounter);
+			//Serial.print("[ltnng] flashCounter: ");
+			//Serial.println(flashCounter);
 			nextFlashDelay = 0;
 			if ( flashCounter == 0 ) {
 				//Serial.println("[ltnng] New strike");
@@ -191,12 +192,19 @@ Effects::Effects() {
 				show_at_max_brightness_for_power();     
 				nextFlashDelay += 50+random8(100);               // shorter delay between strokes  
 			} else {
-				Serial.println("[ltnng] Strike complete");
+				//Serial.println("[ltnng] Strike complete");
 				flashCounter = 0;
 				nextFlashDelay = random8(frequency)*100;          // delay between strikes
 			}
 			lastFlashTime = millis();
 		} 
+
+		//Save shit until next time (I AM THE WORST)
+		intEffectState = flashCounter;
+		ulongEffectState = lastFlashTime;
+		ulongEffectState2 = nextFlashDelay;
+		intEffectState2 = ledstart;
+		intEffectState3 = ledlen;
 	
 	});
 	add("Fill from palette", [](){

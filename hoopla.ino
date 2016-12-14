@@ -57,6 +57,10 @@ CRGBPalette16 currentPalette;
 //internal effect state vars follow...
 bool boolEffectState; 
 int intEffectState;
+int intEffectState2;
+int intEffectState3;
+unsigned long ulongEffectState;
+unsigned long ulongEffectState2;
 
 
 bool isAP = false;
