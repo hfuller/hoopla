@@ -156,6 +156,8 @@ Effects::Effects() {
 	
 	});
 	add("Lightning", [](){
+		fill_solid(leds, numpixels, CRGB::Black);
+
 		uint8_t frequency = 50; //controls the interval between strikes
 		uint8_t flashes = 8; //the upper limit of flashes per strike
 		unsigned int dimmer = 1;
