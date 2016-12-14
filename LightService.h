@@ -1,5 +1,3 @@
-#include <ESP8266WebServer.h>
-
 enum HueColorType {
   TYPE_HUE_SAT, TYPE_CT, TYPE_XY
 };
@@ -38,13 +36,15 @@ class LightHandler {
 #define MAX_LIGHT_HANDLERS 6
 #define COLOR_SATURATION 254
 
+class ESP8266WebServer;
 class LightServiceClass {
     public:
       LightHandler *getLightHandler(int numberOfTheLight);
       bool setLightsAvailable(int numLights);
       int getLightsAvailable();
       bool setLightHandler(int index, LightHandler *handler);
-      void begin(ESP8266WebServer * svr);
+      void begin();
+      void begin(ESP8266WebServer *svr);
       void update();
     private:
       int currentNumLights = MAX_LIGHT_HANDLERS;
