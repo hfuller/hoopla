@@ -389,7 +389,7 @@ void setup() {
 		server.send(200, "text/html", header);
 		server.sendContent(R"(
 			<h1>Controls</h1>
-			<form method="POST" action="/effect/save">
+			<form method="PUT" action="/effects/current">
 			<select name="e" id="e">
 				<option value="1">Blink One</option>
 				<option value="2">Solid One</option>
@@ -414,7 +414,7 @@ void setup() {
 			<script>
 				document.getElementById("e").addEventListener("change", function() {
 					var xhr = new XMLHttpRequest();
-					xhr.open("POST","/effect/save", true);
+					xhr.open("PUT","/effects/current", true);
 					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 					xhr.send("e=" + this.value);
 					xhr.send();
@@ -423,7 +423,31 @@ void setup() {
 		)");
 		server.client().stop(); // Stop is needed because we sent no content length
 	});
-	server.on("/effect/save", handleEffectSave);
+	server.on("/effects", HTTP_GET, [&](){
+		aJsonObject * root = aJson.createArray();
+		
+		aJsonObject * e;
+		for ( int i=0; i < effects.getCount(); i++ ) {
+			e = aJson.createObject();
+			aJson.addNumberToObject(e, "id", i);
+			aJson.addStringToObject(e, "name", effects.get(i).name.c_str());
+			aJson.addItemToArray(root, e);
+		}
+
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "text/html", aJson.print(root));
+		server.client().stop();
+	});
+	server.on("/effects/current", HTTP_GET, [&](){
+		aJsonObject * j = aJson.createObject();
+		aJson.addNumberToObject(j, "id", effect);
+		aJson.addStringToObject(j, "name", effects.get(effect).name.c_str());
+		
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "text/html", aJson.print(j));
+		server.client().stop();
+	});
+	server.on("/effects/current", HTTP_PUT, handleEffectSave);
 	server.on("/setup", handleSetup);
 	server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
 	server.on("/setup/leds", HTTP_POST, handleSetupLedsPost);
@@ -668,7 +692,7 @@ void handleDebugDisconnect() {
 
 void handleEffectSave() {
   Serial.print("[httpd] effect save. ");
-  effect = server.arg("e").toInt();
+  effect = server.arg("id").toInt();
   Serial.println(effect);
   server.sendHeader("Location", "/?ok", true);
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
