@@ -297,7 +297,6 @@ void setup() {
 
 	Serial.print("[start] Starting DNS on "); Serial.println(WiFi.softAPIP());
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-	dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
 	Serial.println("[start] starting http");
 	//the following handler is a hack. sorry
@@ -625,6 +624,9 @@ void loop() {
 			}
 			if ( doRestartServices ) {
 				Serial.println("[Wi-Fi] Restarting services due to Wi-Fi state change");
+
+				Serial.println("[Wi-Fi] Starting DNS poisoning");
+				dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
 				Serial.println("[Wi-Fi] Setting up OTA");
 				ArduinoOTA.begin();
