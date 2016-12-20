@@ -22,7 +22,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			34
+#define VERSION			35
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -404,33 +404,21 @@ void setup() {
 		server.sendContent(R"(
 			<h1>Controls</h1>
 			<form method="PUT" action="/effects/current">
-			<select name="e" id="e">
-				<option value="1">Blink One</option>
-				<option value="2">Solid One</option>
-				<option value="3">Solid All</option>
-				<option value="4">Dot Beat</option>
-				<option value="5">Ease Me</option>
-				<option value="6">FastCirc</option>
-				<option value="7">Confetti 1</option>
-				<option value="8">Confetti 2</option>
-				<option value="9">Confetti 3</option>
-				<option value="10">Rotating Rainbow</option>
-				<option value="11">Juggle 1</option>
-				<option value="12">Juggle 2</option>
-				<option value="13">Juggle 3</option>
-				<option value="14">Lightning</option>
-				<option value="15">Solid Palette: Angry Cloud</option>
-				<option value="16">Rotating Palette: Angry Cloud</option>
-				<option value="100">Event loader subsystem beta</option>
+			<select name="id" id="id">
+		)");
+		for ( int i=0; i < effects.getCount(); i++ ) {
+			server.sendContent(String("<option value=\"") + i + "\">" + effects.get(i).name + "</option>");
+		}
+		server.sendContent(R"(
 			</select>
 			<button type="submit">Set</button>
 			</form>
 			<script>
-				document.getElementById("e").addEventListener("change", function() {
+				document.getElementById("id").addEventListener("change", function() {
 					var xhr = new XMLHttpRequest();
 					xhr.open("PUT","/effects/current", true);
 					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-					xhr.send("e=" + this.value);
+					xhr.send("id=" + this.value);
 					xhr.send();
 				});
 			</script>
