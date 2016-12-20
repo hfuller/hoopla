@@ -68,6 +68,7 @@ bool doConnect = false;
 bool doRestartServices = true;
 bool doRestartDevice = false;
 bool doEffects = true;
+bool allowApMode = true;
 
 void runLeds();
 void handleRoot();
@@ -238,6 +239,13 @@ void setup() {
 		EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);   //MSB
 		EEPROM.write(5, maxLoadMilliamps & 0xFF); //LSB
 	}
+	byte ota = EEPROM.read(6);
+	if ( ota ) {
+		//OTA update was just installed
+		Serial.println("[start] We just got OTA'd. Forcing client mode");
+		allowApMode = false;
+		EEPROM.write(6,0);
+	}
 	EEPROM.end(); //write the "EEPROM" to flash (on an ESP anyway)
 
 	Serial.print("[start] Starting "); Serial.print(numpixels); Serial.print(" ");
@@ -345,6 +353,9 @@ void setup() {
 				color = CRGB::Yellow;
 				runLeds();
 				doRestartDevice = true;
+				EEPROM.begin(256);
+				EEPROM.write(6,1);
+				EEPROM.end(); //notify that we just installed an update OTA.
 			} else {
 				//if(DEBUG) Update.printError(Serial);
 				color = CRGB::Red;
@@ -497,6 +508,11 @@ void setup() {
 		effect = 2;
 		color = CRGB::Yellow;
 		runLeds();
+		
+		EEPROM.begin(256);
+		EEPROM.write(6,1);
+		EEPROM.end(); //notify that we just installed an update OTA.
+		
 		Serial.println("\nOTA update complete. Reloading");
 	});
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -595,7 +611,7 @@ void loop() {
 			}
 		} else if ( (millis() - lastWirelessChange) > 15000 ) {
 			//We tried to associate to wireless somewhere between 15 and 60 seconds ago.
-			if ( WiFi.status() != WL_CONNECTED && !isAP ) { //We have been trying to associate for far too long.
+			if ( WiFi.status() != WL_CONNECTED && !isAP && allowApMode ) { //We have been trying to associate for far too long.
 				Serial.println("[Wi-Fi] Client giving up");
 				//WiFi.disconnect(); //Don't do this or it will clear the ssid/pass in nvram!!!!!
 				Serial.println("[Wi-Fi] Starting wireless AP");
