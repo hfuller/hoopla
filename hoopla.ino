@@ -42,7 +42,7 @@ const byte DNS_PORT = 53;
 DNSServer dnsServer;
 ESP8266WebServer server(80);
 
-CRGB leds[300];					//NOTE: we write 300 pixels in some cases, like when blanking the strip.
+CRGB leds[400];					//NOTE: we write all pixels in some cases, like when blanking the strip.
 
 unsigned long timer1s;
 unsigned long frameCount;
@@ -225,7 +225,7 @@ void setup() {
 		hardwareType = 0;
 	}
 	numpixels = (EEPROM.read(2)*256)+(EEPROM.read(3)); //math devilry
-	if ( numpixels > 300 ) { //absurd
+	if ( numpixels > (sizeof(leds)/sizeof(leds[0])) ) { //well we can't drive this.
 		Serial.println("[start] Resetting number of pixels");
 		EEPROM.write(2, 0);   //number of pixels (MSB)
 		EEPROM.write(3, 100); //number of pixels (LSB)
@@ -243,19 +243,19 @@ void setup() {
 	Serial.print("[start] Starting "); Serial.print(numpixels); Serial.print(" ");
 	switch (hardwareType) {
 		case 0: //custom type
-			FastLED.addLeds<LED_CONFIG>(leds, 300);
+			FastLED.addLeds<LED_CONFIG>(leds, numpixels);
 			Serial.print("Custom LEDs from config.h");
 			break;
 		case 1: //Wemos D1 Mini with NeoPixel shield
-			FastLED.addLeds<NEOPIXEL, 4>(leds, 300);
+			FastLED.addLeds<NEOPIXEL, 4>(leds, numpixels);
 			Serial.print("NeoPixels on D2");
 			break;
 		case 2: //horizontal LED strip at the shop; cloud at Synapse
-			FastLED.addLeds<NEOPIXEL, 5>(leds, 300);
+			FastLED.addLeds<NEOPIXEL, 5>(leds, numpixels);
 			Serial.print("NeoPixels on D1");
 			break;
 		case 3: //APA102 LED hoop with ESP-01
-			FastLED.addLeds<APA102, 0, 2, BGR>(leds, 300);
+			FastLED.addLeds<APA102, 0, 2, BGR>(leds, numpixels);
 			Serial.print("DotStars on 0,2");
 			break;
 	}
@@ -264,8 +264,8 @@ void setup() {
 	FastLED.setMaxPowerInVoltsAndMilliamps(5,maxLoadMilliamps); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
 	FastLED.setMaxRefreshRate(FRAMERATE);
-	for ( int i=0; i<300; i++ ) {
-		leds[i] = CRGB::Black;
+	for ( int i=0; i<numpixels; i++ ) { //TODO
+		leds[i] = CRGB::Black; 
 	}
 	leds[0] = CRGB::Red; FastLED.show();
 
