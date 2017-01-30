@@ -650,15 +650,16 @@ void handleRoot() {
 void handleDebug() {
 	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 	server.send(200, "text/html", header);
-	server.sendContent("\
-		<h1>Debug</h1>\
-		<form method='POST' action='/debug/reset'>\
-		<button type='submit'>Restart</button>\
-		</form>\
-		<form method='POST' action='/debug/disconnect'>\
-		<button type='submit'>Forget connection info</button>\
-		</form>\
-	");
+	server.sendContent("<h1>Debug</h1>");
+	server.sendContent(String("<h2>Version ") + VERSION + "</h2>");
+	server.sendContent(R"(
+		<form method='POST' action='/debug/reset'>
+		<button type='submit'>Restart</button>
+		</form>
+		<form method='POST' action='/debug/disconnect'>
+		<button type='submit'>Forget connection info</button>
+		</form>
+	)");
 	server.client().stop();
 }
 void handleDebugReset() {
