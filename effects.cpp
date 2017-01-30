@@ -2,7 +2,7 @@
 #include "globals.h"
 #include <FastLED.h>
 
-int Effects::add(String name, std::function<void(void)> run) {
+int EffectManager::add(String name, std::function<void(EffectState *state)> run) {
 	if ( count >= sizeof(efx) ) {
 		Serial.println("[e.cpp] Couldn't add new effect, the pattern is full!");
 		Serial.print("[e.cpp] sizeof(efx): "); Serial.print(sizeof(efx));
@@ -15,7 +15,7 @@ int Effects::add(String name, std::function<void(void)> run) {
 	return(count++);
 }
 
-Effect Effects::get(int idx) {
+Effect EffectManager::get(int idx) {
 	if ( idx >= count ) {
 		Serial.print("[e.cpp] Returning effect 1, as someone tried to get effect "); Serial.print(idx); Serial.print(" but I only have "); Serial.print(count); Serial.println(" effects loaded!");
 		return efx[1];
@@ -23,36 +23,36 @@ Effect Effects::get(int idx) {
 	return efx[idx];
 }
 
-int Effects::getCount() {
+int EffectManager::getCount() {
 	return count;
 }
 
-Effects::Effects() {
+EffectManager::EffectManager() {
 	count = 0;
 	Serial.println("[e.cpp] Loading effects");
 
-	add("Solid All", [](){
-		fill_solid(leds, numpixels, color);
+	add("Solid All", [](EffectState *state){
+		fill_solid(leds, numpixels, state->color);
 	});
-	add("Blink One", [](){
-		//intEffectState = where on the strip to blink.
+	add("Blink One", [](EffectState *state){
+		//state->intEffectState = where on the strip to blink.
 		EVERY_N_MILLISECONDS(500) {
-			if ( nextColor == CRGB(0,0,0) ) {
-				nextColor = color;
+			if ( state->nextColor == CRGB(0,0,0) ) {
+				state->nextColor = state->color;
 			} else {
-				nextColor = CRGB::Black;
+				state->nextColor = CRGB::Black;
 			}
 		}
 		
 		fill_solid(leds, numpixels, CRGB::Black);
-		leds[intEffectState] = nextColor;
+		leds[state->intEffectState] = state->nextColor;
 	});
-	add("Solid One", [](){
-		//intEffectState = where on the strip to write a solid LED.
+	add("Solid One", [](EffectState *state){
+		//state->intEffectState = where on the strip to write a solid LED.
 		fill_solid(leds, numpixels, CRGB::Black);
-		leds[intEffectState] = color;
+		leds[state->intEffectState] = state->color;
 	});
-	add("Dot Beat", [](){
+	add("Dot Beat", [](EffectState *state){
 		uint8_t count = 0; //Count up to 255 and then reverts to 0
 		uint8_t fadeval = 224; //Trail behind the LED's. Lower => faster fade.
 		uint8_t bpm = 30;
@@ -67,49 +67,49 @@ Effects::Effects() {
 		nscale8(leds,numpixels,fadeval); // Fade the entire array. Or for just a few LED's, use  nscale8(&leds[2], 5, fadeval);
 	
 	});
-	add("Ease Me", [](){
-		//boolEffectState: Whether to reverse the thing
+	add("Ease Me", [](EffectState *state){
+		//state->boolEffectState: Whether to reverse the thing
 		static uint8_t easeOutVal = 0;
 		static uint8_t easeInVal  = 0;
 		static uint8_t lerpVal    = 0;
 	
 		easeOutVal = ease8InOutQuad(easeInVal);
-		if ( boolEffectState ) {
+		if ( state->boolEffectState ) {
 			easeInVal -= 3;
 		} else {
 			easeInVal += 3;
 		}
 		if ( easeInVal > 250 ) {
-			boolEffectState = true;
+			state->boolEffectState = true;
 		} else if ( easeInVal < 5 ) {
-			boolEffectState = false;
+			state->boolEffectState = false;
 		}
 	
 		lerpVal = lerp8by8(0, numpixels, easeOutVal);
 	
 		for ( int i = lerpVal; i < numpixels; i += 8 ) {
-			leds[i] = color;
+			leds[i] = state->color;
 		}
 		fadeToBlackBy(leds, numpixels, 32);                     // 8 bit, 1 = slow, 255 = fast
 	
 	});
-	add("Fast Circ", [](){
-		//intEffectState is how far down the cycle we are (out of thisgap).
-		//boolEffectState is whether it's reversed
+	add("Fast Circ", [](EffectState *state){
+		//state->intEffectState is how far down the cycle we are (out of thisgap).
+		//state->boolEffectState is whether it's reversed
 
-		int thisdir = ( boolEffectState ? -1 : 1 );
+		int thisdir = ( state->boolEffectState ? -1 : 1 );
 		int thisgap = 8;
 
 		EVERY_N_MILLISECONDS(50) {
-			intEffectState = (intEffectState + thisdir)%thisgap;
-			for ( int i=intEffectState; i<numpixels; i+=thisgap ) {
-				leds[i] = color;
+			state->intEffectState = (state->intEffectState + thisdir)%thisgap;
+			for ( int i=state->intEffectState; i<numpixels; i+=thisgap ) {
+				leds[i] = state->color;
 			}
 		}
 		fadeToBlackBy(leds, numpixels, 24);
 	
 	});
-	add("Confetti", [](){
+	add("Confetti", [](EffectState *state){
 		uint8_t thisfade = 16; //How quickly does it fade? Lower = slower fade rate.
 		int thishue = 50; //Starting hue.
 		uint8_t thisinc = 1; //Incremental value for rotating hues
@@ -131,7 +131,7 @@ Effects::Effects() {
 		leds[pos] += CHSV((thishue + random16(huediff))/4 , thissat, thisbri); //I use 12 bits for hue so that the hue increment isn't too quick.
 		thishue = thishue + thisinc; //It increments here.
 	});
-	add("Juggle", [](){
+	add("Juggle", [](EffectState *state){
 		uint8_t numdots = 4; //Number of dots in use.
 		uint8_t faderate = 2; //How long should the trails be. Very low value = longer trails.
 		uint8_t hueinc = 16; //Incremental change in hue between each dot.
@@ -155,18 +155,18 @@ Effects::Effects() {
 		}
 	
 	});
-	add("Lightning", [](){
+	add("Lightning", [](EffectState *state){
 		fill_solid(leds, numpixels, CRGB::Black);
 
 		uint8_t frequency = 50; //controls the interval between strikes
 		uint8_t flashes = 8; //the upper limit of flashes per strike
 		unsigned int dimmer = 1;
 
-		int flashCounter = intEffectState; //how many flashes have we done already, during this cycle?
-		unsigned long lastFlashTime = ulongEffectState; //when did we last flash?
-		unsigned long nextFlashDelay = ulongEffectState2; //how long do we wait since the last flash before flashing again?
-		int ledstart = intEffectState2; // Starting location of a flash
-		int ledlen = intEffectState3; // Length of a flash
+		int flashCounter = state->intEffectState; //how many flashes have we done already, during this cycle?
+		unsigned long lastFlashTime = state->ulongEffectState; //when did we last flash?
+		unsigned long nextFlashDelay = state->ulongEffectState2; //how long do we wait since the last flash before flashing again?
+		int ledstart = state->intEffectState2; // Starting location of a flash
+		int ledlen = state->intEffectState3; // Length of a flash
 
 		//Serial.print("[ltnng] entered. millis()="); Serial.print(millis()); Serial.print(" lastFlashTime="); Serial.print(lastFlashTime); Serial.print(" nextFlashDelay="); Serial.println(nextFlashDelay);
 		if ( (millis() - lastFlashTime) > nextFlashDelay ) { //time to flash
@@ -202,20 +202,20 @@ Effects::Effects() {
 		} 
 
 		//Save shit until next time (I AM THE WORST)
-		intEffectState = flashCounter;
-		ulongEffectState = lastFlashTime;
-		ulongEffectState2 = nextFlashDelay;
-		intEffectState2 = ledstart;
-		intEffectState3 = ledlen;
+		state->intEffectState = flashCounter;
+		state->ulongEffectState = lastFlashTime;
+		state->ulongEffectState2 = nextFlashDelay;
+		state->intEffectState2 = ledstart;
+		state->intEffectState3 = ledlen;
 	
 	});
-	add("Fill from palette", [](){
+	add("Fill from palette", [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
-		fill_palette(leds, numpixels, beatA, 0, currentPalette, 255, LINEARBLEND);
+		fill_palette(leds, numpixels, beatA, 0, state->currentPalette, 255, LINEARBLEND);
 	});
-	add("Rotate palette", [](){
+	add("Rotate palette", [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
-		fill_palette(leds, numpixels, beatA, 6, currentPalette, 255, LINEARBLEND);
+		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
 	});
 	
 	Serial.print("[e.cpp] "); Serial.print(count); Serial.println(" effects loaded. Please pull forward for your total");

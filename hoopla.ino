@@ -22,7 +22,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			35
+#define VERSION			36
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -49,19 +49,9 @@ unsigned long frameCount;
 unsigned long lastWirelessChange;
 
 //EFFECT SHIT
-Effects effects; //lol
+EffectManager emgr; //lol
 byte effect = 2;
-CRGB color = CRGB::Teal;
-CRGB nextColor = CRGB::Black;
-CRGBPalette16 currentPalette;
-//internal effect state vars follow...
-bool boolEffectState; 
-int intEffectState;
-int intEffectState2;
-int intEffectState3;
-unsigned long ulongEffectState;
-unsigned long ulongEffectState2;
-
+EffectState state;
 
 bool isAP = false;
 bool doConnect = false;
@@ -149,13 +139,13 @@ class StripHandler : public LightHandler {
         }
         Serial.println("[emhue] Changing color");
         //Serial.print("[emhue] H:"); Serial.print(newColor.h); Serial.print("S:"); Serial.print(newColor.s); Serial.print("V:"); Serial.println(newColor.v);
-        color = newColor;
-        //Serial.print("[emhue] R:"); Serial.print(color.r); Serial.print("G:"); Serial.print(color.g); Serial.print("B:"); Serial.println(color.b);
+        state.color = newColor;
+        //Serial.print("[emhue] R:"); Serial.print(state.color.r); Serial.print("G:"); Serial.print(state.color.g); Serial.print("B:"); Serial.println(state.color.b);
         effect = 0; //SolidAll
       }
       else
       {
-        color = CRGB::Black;
+        state.color = CRGB::Black;
 		effect = 0; //SolidAll
       }
     }
@@ -280,11 +270,11 @@ void setup() {
 	Serial.println("[start] Starting effects");
 	effect = 2; //solid for status indication
 	//Palette
-	currentPalette = LavaColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	state.currentPalette = LavaColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
 	
 	Serial.println("[start] Starting bleeding edge effects loader");
-	color = CRGB::Orange; runLeds();
-	effects = Effects(); //is there an echo in here?
+	state.color = CRGB::Orange; runLeds();
+	emgr = EffectManager(); //is there an echo in here?
 
 	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID()); //Serial.print(" with key: "); Serial.println(WiFi.psk());
 	WiFi.SSID().toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
@@ -323,7 +313,7 @@ void setup() {
 		if(upload.status == UPLOAD_FILE_START){
 			Serial.printf("Starting HTTP update from %s - other functions will be suspended.\r\n", upload.filename.c_str());
 			effect = 2;
-			color = CRGB::OrangeRed;
+			state.color = CRGB::OrangeRed;
 
 			//doRestartServices = true; //why would we do this when we are about to reboot anyway
 			WiFiUDP::stopAll();
@@ -331,25 +321,25 @@ void setup() {
 			uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 			if(!Update.begin(maxSketchSpace)){//start with max available size
 				//if(DEBUG) Update.printError(Serial);
-				color = CRGB::Red;
+				state.color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_WRITE){
 			Serial.print(upload.totalSize); Serial.printf(" bytes written\r");
 			runLeds();
 
-			intEffectState = ( upload.totalSize / ( 350000 / numpixels ) );
-			if ( intEffectState >= numpixels ) {
-				intEffectState = numpixels-1;
+			state.intEffectState = ( upload.totalSize / ( 350000 / numpixels ) );
+			if ( state.intEffectState >= numpixels ) {
+				state.intEffectState = numpixels-1;
 			}
 
 			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
 				//if(DEBUG) Update.printError(Serial);
-				color = CRGB::Red;
+				state.color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_END){
 			if(Update.end(true)){ //true to set the size to the current progress
 				Serial.printf("Update Success: %u\n", upload.totalSize);
-				color = CRGB::Yellow;
+				state.color = CRGB::Yellow;
 				runLeds();
 				doRestartDevice = true;
 				EEPROM.begin(256);
@@ -357,12 +347,12 @@ void setup() {
 				EEPROM.end(); //notify that we just installed an update OTA.
 			} else {
 				//if(DEBUG) Update.printError(Serial);
-				color = CRGB::Red;
+				state.color = CRGB::Red;
 			}
 		} else if(upload.status == UPLOAD_FILE_ABORTED){
 			Update.end();
 			Serial.println("Update was aborted");
-			color = CRGB::Red;
+			state.color = CRGB::Red;
 		}
 		delay(0);
 	});
@@ -406,8 +396,8 @@ void setup() {
 			<form method="PUT" action="/effects/current">
 			<select name="id" id="id">
 		)");
-		for ( int i=0; i < effects.getCount(); i++ ) {
-			server.sendContent(String("<option value=\"") + i + "\">" + effects.get(i).name + "</option>");
+		for ( int i=0; i < emgr.getCount(); i++ ) {
+			server.sendContent(String("<option value=\"") + i + "\">" + emgr.get(i).name + "</option>");
 		}
 		server.sendContent(R"(
 			</select>
@@ -429,10 +419,10 @@ void setup() {
 		aJsonObject * root = aJson.createArray();
 		
 		aJsonObject * e;
-		for ( int i=0; i < effects.getCount(); i++ ) {
+		for ( int i=0; i < emgr.getCount(); i++ ) {
 			e = aJson.createObject();
 			aJson.addNumberToObject(e, "id", i);
-			aJson.addStringToObject(e, "name", effects.get(i).name.c_str());
+			aJson.addStringToObject(e, "name", emgr.get(i).name.c_str());
 			aJson.addItemToArray(root, e);
 		}
 
@@ -443,7 +433,7 @@ void setup() {
 	server.on("/effects/current", HTTP_GET, [&](){
 		aJsonObject * j = aJson.createObject();
 		aJson.addNumberToObject(j, "id", effect);
-		aJson.addStringToObject(j, "name", effects.get(effect).name.c_str());
+		aJson.addStringToObject(j, "name", emgr.get(effect).name.c_str());
 		
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", aJson.print(j));
@@ -459,14 +449,7 @@ void setup() {
 	server.on("/debug/test", [&](){
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", "Loading effects... ");
-		Effects effects = Effects();
-		server.sendContent("add result: ");
-		server.sendContent(String(effects.add("Test2", [&](){
-			Serial.println("Test effect 2");
-		})));
-		for ( int i=0; i < effects.getCount(); i++ ) {
-			server.sendContent(effects.get(i).name + ", ");
-		}
+		EffectManager emgr = EffectManager();
 		server.sendContent("done.");
 		server.client().stop();
 	});
@@ -478,7 +461,7 @@ void setup() {
 	server.onNotFound ( handleNotFound );
 	server.begin(); // Web server start
 
-	color = CRGB::Yellow; runLeds();
+	state.color = CRGB::Yellow; runLeds();
 	Serial.println("[start] Setting up OTA");
 	// Port defaults to 8266
 	//ArduinoOTA.setPort(8266);
@@ -488,12 +471,12 @@ void setup() {
 	//ArduinoOTA.setPassword((const char *)"123");
 	ArduinoOTA.onStart([]() {
 		effect = 1;
-		color = CRGB::OrangeRed;
+		state.color = CRGB::OrangeRed;
 		Serial.println("Starting OTA update. Other functions will be suspended.");
 	});
 	ArduinoOTA.onEnd([]() {
 		effect = 2;
-		color = CRGB::Yellow;
+		state.color = CRGB::Yellow;
 		runLeds();
 		
 		EEPROM.begin(256);
@@ -504,16 +487,16 @@ void setup() {
 	});
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
 		if ( leds[0] == CRGB(0,0,0) ) {
-			color = CRGB::OrangeRed; 
+			state.color = CRGB::OrangeRed; 
 	    } else {
-	        color = CRGB::Black;
+	        state.color = CRGB::Black;
 	    }
 		runLeds();
 
 		Serial.printf("OTA progress: %u%%\r", (progress / (total / 100)));
 	});
 	ArduinoOTA.onError([](ota_error_t error) {
-		color = CRGB::Red;
+		state.color = CRGB::Red;
 		Serial.printf("OTA Error[%u]: ", error);
 		if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
 		else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
@@ -522,7 +505,7 @@ void setup() {
 		else if (error == OTA_END_ERROR) Serial.println("End Failed");
 	});
 	
-	color = CRGB::Green; runLeds();
+	state.color = CRGB::Green; runLeds();
 	Serial.println("[start] Startup complete.");
 }
 
@@ -650,7 +633,7 @@ void runLeds() {
 	//WOW this function got way simpler than it used to be. I just want to talk about that.
 
 	frameCount++; //for frame rate measurement
-	effects.get(effect).run();
+	emgr.get(effect).run(&state); //Pass our state struct to the effect.
 	show_at_max_brightness_for_power(); //FastLED.show();
 
 }
