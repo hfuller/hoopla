@@ -75,6 +75,8 @@ boolean isIp(String str);
 String toStringIp(IPAddress ip);
 CHSV getCHSV(int hue, int sat, int bri);
 CHSV getCHSV(const CRGB& color);
+void spiffsWrite(String path, String contents);
+String spiffsRead(String path);
 
 const char * header = R"(<!DOCTYPE html>
 <html>
@@ -883,3 +885,16 @@ CHSV getCHSV(const CRGB& color) { //from neopixelbus
     return CHSV(h,s,v);
     return CHSV(h,s,v);
 }
+
+void spiffsWrite(String path, String contents) {
+	File f = SPIFFS.open(path, "w");
+	f.println(contents);
+	f.close();
+}
+String spiffsRead(String path) {
+	File f = SPIFFS.open(path, "r");
+	String x = f.readStringUntil('\n');
+	f.close();
+	return x;
+}
+
