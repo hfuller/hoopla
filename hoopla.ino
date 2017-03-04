@@ -396,7 +396,7 @@ void setup() {
 		}
 		server.sendContent(R"(
 			</select>
-			<button type="submit">Set</button>
+			<!-- <button type="submit">Set</button> -->
 			</form>
 			<script>
 				document.getElementById("id").addEventListener("change", function() {
@@ -745,8 +745,8 @@ void handleSetup() {
   EEPROM.begin(256); byte hardwareType = EEPROM.read(1); EEPROM.end(); //HACK HACK HACK
   server.sendContent(String() + R"(
 <h4>LED setup</h4>
+<h5>Don't touch this stuff!</h5>
 <form method="POST" action="/setup/leds">
-	LED type:
 	<select name="hardware_type" id="hardware_type"><!-- )" + hardwareType + R"( -->
 		<option value="0" )" + (hardwareType==0 ? "selected" : "") + R"(>Custom setup from config.h (set at build)</option>
 		<option value="1" )" + (hardwareType==1 ? "selected" : "") + R"(>NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
