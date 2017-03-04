@@ -184,22 +184,14 @@ void setup() {
 	File f;
 	if ( ! SPIFFS.exists("/name") ) {
 		Serial.println("[start] Setting default host name");
-		f = SPIFFS.open("/name", "w");
-		f.println("hoopla-device");
-		f.close();
+		spiffsWrite("/name", "hoopla-device");
 	}
-	f = SPIFFS.open("/name", "r");
-	f.readStringUntil('\n').toCharArray(devHostName, 32);
-	f.close();
+	spiffsRead("/name").toCharArray(devHostName, 32);
 	if ( ! SPIFFS.exists("/psk") ) {
 		Serial.println("[start] Setting empty PSK");
-		f = SPIFFS.open("/psk", "w");
-		f.println();
-		f.close();
+		spiffsWrite("/psk", "");
 	}
-	f = SPIFFS.open("/psk", "r");
-	f.readStringUntil('\n').toCharArray(passwordAP, 32);
-	f.close();
+	spiffsRead("/psk").toCharArray(passwordAP, 32);
 	Serial.print("[start] Hello from "); Serial.println(devHostName);		
 
 	Serial.println("[start] Loading configuration from eeprom");
