@@ -51,6 +51,7 @@ unsigned long lastWirelessChange;
 //EFFECT SHIT
 EffectManager emgr; //lol
 byte effect = 2;
+boolean attractMode = true;
 EffectState state;
 
 bool isAP = false;
@@ -616,6 +617,15 @@ void loop() {
 			doRestartServices = true; //restart OTA
 		}
 
+	}
+
+	EVERY_N_MILLISECONDS(10000) {
+		if ( attractMode ) {
+			effect++;
+			if ( effect >= emgr.getCount() ) {
+				effect = 3; //skip 1-led methods
+			}
+		}
 	}
 
 	runLeds();
