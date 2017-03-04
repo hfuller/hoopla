@@ -732,18 +732,19 @@ void handleSetup() {
 			<button type='submit'>Save and Connect</button>\
 		</form>\
   ");
-  server.sendContent(R"(
+  EEPROM.begin(256); byte hardwareType = EEPROM.read(1); EEPROM.end(); //HACK HACK HACK
+  server.sendContent(String() + R"(
 <h4>LED setup</h4>
 <form method="POST" action="/setup/leds">
 	LED type:
-	<select name="hardware_type" id="hardware_type">
-		<option value="0">Custom setup from config.h (set at build)</option>
-		<option value="1">NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
-		<option value="2">NeoPixels on GPIO5(D1) (Makers Local 256; Synapse Wireless)</option>
-		<option value="3">DotStars on GPIO0(D3)/GPIO2(D4) (JC/JB Hoop)</option>
+	<select name="hardware_type" id="hardware_type"><!-- )" + hardwareType + R"( -->
+		<option value="0" )" + (hardwareType==0 ? "selected" : "") + R"(>Custom setup from config.h (set at build)</option>
+		<option value="1" )" + (hardwareType==1 ? "selected" : "") + R"(>NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
+		<option value="2" )" + (hardwareType==2 ? "selected" : "") + R"(>NeoPixels on GPIO5(D1) (Makers Local 256; Synapse Wireless)</option>
+		<option value="3" )" + (hardwareType==3 ? "selected" : "") + R"(>DotStars on GPIO0(D3)/GPIO2(D4) (JC/JB Hoop)</option>
 	</select>
-	<input name="numpixels" placeholder="Number of LEDs">
-	<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw">
+	<input name="numpixels" placeholder="Number of LEDs" value=")" + numpixels + R"(">
+	<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw" value=")" + maxLoadMilliamps + R"(">
 	<button type="submit">Save</button>
 </form>
   )");
