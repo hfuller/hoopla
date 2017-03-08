@@ -736,6 +736,7 @@ void lightsNewFn(WcFnRequestHandler *handler, String requestUri, HTTPMethod meth
 void LightServiceClass::begin() {
   begin(new ESP8266WebServer(80));
 }
+
 void LightServiceClass::begin(ESP8266WebServer *svr) {
   HTTP = svr;
   macString = String(WiFi.macAddress());
@@ -755,6 +756,7 @@ void LightServiceClass::begin(ESP8266WebServer *svr) {
   on(configFn, "/api/*/config", HTTP_ANY);
   on(configFn, "/api/config", HTTP_GET);
   on(wholeConfigFn, "/api/*", HTTP_GET);
+  on(wholeConfigFn, "/api/", HTTP_GET);
   on(authFn, "/api", HTTP_POST);
   on(unimpFn, "/api/*/schedules", HTTP_GET);
   on(unimpFn, "/api/*/rules", HTTP_GET);
@@ -927,6 +929,7 @@ bool parseHueLightInfo(HueLightInfo currentInfo, aJsonObject *parsedRoot, HueLig
       newInfo->effect = EFFECT_NONE;
     }
   }
+  
   // pull alert
   aJsonObject* alertState = aJson.getObjectItem(parsedRoot, "alert");
   if (alertState) {
@@ -938,6 +941,12 @@ bool parseHueLightInfo(HueLightInfo currentInfo, aJsonObject *parsedRoot, HueLig
     } else {
       newInfo->alert = ALERT_NONE;
     }
+  }
+
+  // pull transitiontime
+  aJsonObject* transitiontimeState = aJson.getObjectItem(parsedRoot, "transitiontime");
+  if (transitiontimeState) {
+    newInfo->transitionTime = transitiontimeState->valueint;
   }
 
   aJsonObject* hueState = aJson.getObjectItem(parsedRoot, "hue");
