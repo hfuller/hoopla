@@ -17,6 +17,7 @@ struct HueLightInfo {
   int hue = 0, saturation = 0;
   HueAlert alert = ALERT_NONE;
   HueEffect effect = EFFECT_NONE;
+  unsigned int transitionTime = 800; // by default there is a transition time to the new state of 400 milliseconds
 };
 
 class aJsonObject;
@@ -34,7 +35,7 @@ class LightHandler {
 
 // Max number of exposed lights is directly related to aJSON PRINT_BUFFER_LEN, 14 for 4096
 #define MAX_LIGHT_HANDLERS 6
-#define COLOR_SATURATION 254
+#define COLOR_SATURATION 255.0f
 
 class ESP8266WebServer;
 class LightServiceClass {
