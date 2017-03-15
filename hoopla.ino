@@ -65,7 +65,6 @@ bool doEffects = true;
 bool allowApMode = true;
 
 void runLeds();
-void handleEffectSave();
 void handleSetupWifiPost();
 void handleSetupLedsPost();
 void handleNotFound();
@@ -439,7 +438,23 @@ void setup() {
 		server.send(200, "text/html", json);
 		server.client().stop();
 	});
-	server.on("/effects/current", HTTP_PUT, handleEffectSave);
+	server.on("/effects/current", HTTP_PUT, [&](){
+		Serial.print("[httpd] effect save. ");
+		effect = server.arg("id").toInt();
+		if ( effect < 0 ) { //HACK to enable attract mode
+			effect = 3; //move past the single LED ones.
+			attractMode = true;
+		} else {
+			attractMode = false;
+		}
+		Serial.println(effect);
+		server.sendHeader("Location", "/?ok", true);
+		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+		server.sendHeader("Pragma", "no-cache");
+		server.sendHeader("Expires", "-1");
+		server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
+		server.client().stop(); // Stop is needed because we sent no content length
+	});
 	server.on("/setup", [&](){
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 		server.sendHeader("Pragma", "no-cache");
@@ -768,27 +783,6 @@ void runLeds() {
 
 
 //HTTP STUFF borrowed from https://github.com/esp8266/Arduino/blob/master/libraries/DNSServer/examples/CaptivePortalAdvanced/CaptivePortalAdvanced.ino
-
-//Boring files
-
-void handleEffectSave() {
-  Serial.print("[httpd] effect save. ");
-  effect = server.arg("id").toInt();
-  if ( effect < 0 ) { //HACK to enable attract mode
-    effect = 3; //move past the single LED ones.
-    attractMode = true;
-  } else {
-    attractMode = false;
-  }
-  Serial.println(effect);
-  server.sendHeader("Location", "/?ok", true);
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.sendHeader("Pragma", "no-cache");
-  server.sendHeader("Expires", "-1");
-  server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
-  server.client().stop(); // Stop is needed because we sent no content length
-}
-
 
 /** Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
 boolean captivePortal() {
