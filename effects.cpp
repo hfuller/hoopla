@@ -51,6 +51,8 @@ int EffectManager::getPaletteCount() {
 EffectManager::EffectManager() {
 	Serial.println("[e.cpp] Effect Manager!! wooo");
 	efxCount = 0;
+	pltCount = 0;
+
 	Serial.println("[e.cpp] Loading effects");
 
 	addEffect("Solid All", false, [](EffectState *state){
@@ -245,6 +247,15 @@ EffectManager::EffectManager() {
 		fill_noise16(leds,      numpixels, 10,     99,1,     2,           0,     5,         millis()/2);
 		//                                            ^ does nothing???          ^ bigger = smaller bands
 	});
+
+	Serial.println("[e.cpp] Loading palettes");
+	addPalette("Rainbow Gradient", RainbowColors_p);
+	addPalette("Rainbow Stripe", RainbowStripeColors_p);
+	addPalette("Ocean", OceanColors_p);
+	addPalette("Cloud", CloudColors_p);
+	addPalette("Lava", LavaColors_p);
+	addPalette("Forest", ForestColors_p);
+	addPalette("Party", PartyColors_p);
 	
 	Serial.print("[e.cpp] "); Serial.print(efxCount); Serial.println(" effects loaded. Please pull forward for your total");
 }
