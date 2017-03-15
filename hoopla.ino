@@ -447,7 +447,12 @@ void setup() {
 		} else {
 			attractMode = false;
 		}
-		Serial.println(effect);
+		Serial.print(effect); Serial.print(" ");
+
+		int paletteId = server.arg("palette").toInt();
+		state.currentPalette = emgr.getPalette(paletteId).palette;
+		Serial.println(paletteId);
+
 		server.sendHeader("Location", "/?ok", true);
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 		server.sendHeader("Pragma", "no-cache");
