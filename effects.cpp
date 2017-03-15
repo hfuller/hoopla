@@ -236,7 +236,7 @@ EffectManager::EffectManager() {
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 0, state->currentPalette, 255, LINEARBLEND);
 	});
-	addEffect("Rotate palette", true, [](EffectState *state){
+	addEffect("Rotate palette", false, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
 	});
@@ -247,6 +247,13 @@ EffectManager::EffectManager() {
 		fill_noise16(leds,      numpixels, 10,     99,1,     2,           0,     5,         millis()/2);
 		//                                            ^ does nothing???          ^ bigger = smaller bands
 	});
+	addEffect("Glitter palette", true, [](EffectState *state) {
+		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
+		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
+		if ( random8() < 200 ) {
+			leds[random16(numpixels)] += CRGB::White;
+		}
+	});	
 
 	Serial.println("[e.cpp] Loading palettes");
 	addPalette("Rainbow Gradient", RainbowColors_p);
