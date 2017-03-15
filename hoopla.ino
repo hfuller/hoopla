@@ -769,10 +769,7 @@ void loop() {
 	EVERY_N_MILLISECONDS(10000) {
 		if ( attractMode ) {
 			do {
-				effect++;
-				if ( effect >= emgrLoadedCount ) {
-					effect = 0; //loop back to beginning if we've tried all effects
-				}
+				effect = (effect+1) % emgrLoadedCount; //wrap around if we're over the loaded count
 			} while ( ! emgr.getEffect(effect).useForAttractMode ); //Skip any effects that don't want to be seen in attract mode
 		}
 	}
