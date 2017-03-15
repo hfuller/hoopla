@@ -25,14 +25,25 @@ class Effect {
 		std::function<void(EffectState *state)> run;
 };
 
+class Palette {
+	public:
+		String name;
+		CRGBPalette16 palette;
+};
+
 class EffectManager {
 	Effect efx[25];
-	int count;
+	Palette plts[25];
+	int efxCount;
+	int pltCount;
 	public:
 		EffectManager();
-		int add(String name, bool useForAttractMode, std::function<void(EffectState *state)> run);
-		Effect get(int idx);
-		int getCount();
+		int addEffect(String name, bool useForAttractMode, std::function<void(EffectState *state)> run);
+		int addPalette(String name, CRGBPalette16 palette);
+		Effect getEffect(int idx);
+		Palette getPalette(int idx);
+		int getEffectCount();
+		int getPaletteCount();
 };
 
 

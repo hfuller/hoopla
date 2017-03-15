@@ -267,7 +267,7 @@ void setup() {
 	Serial.println("[start] Starting bleeding edge effects loader");
 	state.color = CRGB::Orange; runLeds();
 	emgr = EffectManager(); //is there an echo in here?
-	emgrLoadedCount = emgr.getCount();
+	emgrLoadedCount = emgr.getEffectCount();
 	Serial.print("[start] loader loaded "); Serial.println(emgrLoadedCount);
 
 	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID()); //Serial.print(" with key: "); Serial.println(WiFi.psk());
@@ -391,20 +391,27 @@ void setup() {
 			<select name="id" id="id">
 		)");
 		for ( int i=0; i < emgrLoadedCount; i++ ) {
-			server.sendContent(String("<option value=\"") + i + "\">" + emgr.get(i).name + "</option>");
+			server.sendContent(String("<option value=\"") + i + "\">" + emgr.getEffect(i).name + "</option>");
 		}
 		server.sendContent(R"(
 			</select>
+			<select name="palette" id="palette">
+		)");
+		for ( int i=0; i < emgr.getPaletteCount(); i++ ) {
+			server.sendContent(String("<option value=\"") + i + "\">" + emgr.getPalette(i).name + "</option>");
+		}
+		server.sendContent(R"(
 			<!-- <button type="submit">Set</button> -->
 			</form>
 			<script>
-				document.getElementById("id").addEventListener("change", function() {
+				let listenerFn = function() {
 					var xhr = new XMLHttpRequest();
 					xhr.open("PUT","/effects/current", true);
 					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-					xhr.send("id=" + this.value);
-					xhr.send();
-				});
+					xhr.send("id=" + document.getElementById("id").value + "&palette=" + document.getElementById("palette").value);
+				};
+				document.getElementById("id").addEventListener("change", listenerFn);
+				document.getElementById("palette").addEventListener("change", listenerFn);
 			</script>
 		)");
 		server.client().stop(); // Stop is needed because we sent no content length
@@ -414,7 +421,7 @@ void setup() {
 		server.send(200, "application/json", "[");
 		
 		for ( int i=0; i < emgrLoadedCount; i++ ) {
-			String json = String() + "{\"id\":" + String(i) + ", \"name\":\"" + emgr.get(i).name + "\"}";
+			String json = String() + "{\"id\":" + String(i) + ", \"name\":\"" + emgr.getEffect(i).name + "\"}";
 			server.sendContent(json);
 			if ( i < emgrLoadedCount-1 ) {
 				server.sendContent(", ");
@@ -425,7 +432,7 @@ void setup() {
 		server.client().stop();
 	});
 	server.on("/effects/current", HTTP_GET, [&](){
-		String json = String() + "{\"id\":" + String(effect) + ", \"name\":\"" + emgr.get(effect).name + "\"}";
+		String json = String() + "{\"id\":" + String(effect) + ", \"name\":\"" + emgr.getEffect(effect).name + "\"}";
 		
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", json);
@@ -738,7 +745,7 @@ void loop() {
 				if ( effect >= emgrLoadedCount ) {
 					effect = 0; //loop back to beginning if we've tried all effects
 				}
-			} while ( ! emgr.get(effect).useForAttractMode ); //Skip any effects that don't want to be seen in attract mode
+			} while ( ! emgr.getEffect(effect).useForAttractMode ); //Skip any effects that don't want to be seen in attract mode
 		}
 	}
 
@@ -751,7 +758,7 @@ void runLeds() {
 	//WOW this function got way simpler than it used to be. I just want to talk about that.
 
 	frameCount++; //for frame rate measurement
-	emgr.get(effect).run(&state); //Pass our state struct to the effect.
+	emgr.getEffect(effect).run(&state); //Pass our state struct to the effect.
 	show_at_max_brightness_for_power(); //FastLED.show();
 
 }

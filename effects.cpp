@@ -2,40 +2,61 @@
 #include "globals.h"
 #include <FastLED.h>
 
-int EffectManager::add(String name, bool useForAttractMode, std::function<void(EffectState *state)> run) {
-	if ( count >= sizeof(efx) ) {
-		Serial.println("[e.cpp] Couldn't add new effect, the pattern is full!");
+int EffectManager::addEffect(String name, bool useForAttractMode, std::function<void(EffectState *state)> run) {
+	if ( efxCount >= sizeof(efx) ) {
+		Serial.println("[e.cpp] Couldn't add new effect, there's no room!");
 		Serial.print("[e.cpp] sizeof(efx): "); Serial.print(sizeof(efx));
-		Serial.print(" count: "); Serial.println(count);
+		Serial.print(" efxCount: "); Serial.println(efxCount);
 		return -1;
 	}
-	Serial.print("[e.cpp] Adding effect "); Serial.print(name); Serial.print(" in slot "); Serial.println(count);
-	efx[count].name = name;
-	efx[count].useForAttractMode = useForAttractMode;
-	efx[count].run = run;
-	return(count++);
+	Serial.print("[e.cpp] Adding effect "); Serial.print(name); Serial.print(" in slot "); Serial.println(efxCount);
+	efx[efxCount].name = name;
+	efx[efxCount].useForAttractMode = useForAttractMode;
+	efx[efxCount].run = run;
+	return(efxCount++);
+}
+int EffectManager::addPalette(String name, CRGBPalette16 palette) {
+	if ( pltCount >= sizeof(plts) ) {
+		Serial.println("[e.cpp] Couldn't add new palette, there is no room!");
+		return -1;
+	}
+	Serial.print("[e.cpp] Adding palette "); Serial.println(name);
+	plts[pltCount].name = name;
+	plts[pltCount].palette = palette;
+	return(pltCount++);
 }
 
-Effect EffectManager::get(int idx) {
-	if ( idx >= count ) {
-		Serial.print("[e.cpp] Returning effect 1, as someone tried to get effect "); Serial.print(idx); Serial.print(" but I only have "); Serial.print(count); Serial.println(" effects loaded!");
+Effect EffectManager::getEffect(int idx) {
+	if ( idx >= efxCount ) {
+		Serial.print("[e.cpp] Returning effect 1, as someone tried to get effect "); Serial.print(idx); Serial.print(" but I only have "); Serial.print(efxCount); Serial.println(" effects loaded!");
 		return efx[1];
 	}
 	return efx[idx];
 }
+Palette EffectManager::getPalette(int idx) {
+	if ( idx > pltCount ) {
+		Serial.print("[e.cpp] Tried to get palette "); Serial.print(idx); Serial.print(" but I only have "); Serial.println(pltCount);
+		return plts[1];
+	}
+	return plts[idx];
+}
 
-int EffectManager::getCount() {
-	return count;
+int EffectManager::getEffectCount() {
+	return efxCount;
+}
+int EffectManager::getPaletteCount() {
+	return pltCount;
 }
 
 EffectManager::EffectManager() {
-	count = 0;
+	Serial.println("[e.cpp] Effect Manager!! wooo");
+	efxCount = 0;
 	Serial.println("[e.cpp] Loading effects");
 
-	add("Solid All", false, [](EffectState *state){
+	addEffect("Solid All", false, [](EffectState *state){
 		fill_solid(leds, numpixels, state->color);
 	});
-	add("Blink One", false, [](EffectState *state){
+	addEffect("Blink One", false, [](EffectState *state){
 		//state->intEffectState = where on the strip to blink.
 		EVERY_N_MILLISECONDS(500) {
 			if ( state->nextColor == CRGB(0,0,0) ) {
@@ -48,12 +69,12 @@ EffectManager::EffectManager() {
 		fill_solid(leds, numpixels, CRGB::Black);
 		leds[state->intEffectState] = state->nextColor;
 	});
-	add("Solid One", false, [](EffectState *state){
+	addEffect("Solid One", false, [](EffectState *state){
 		//state->intEffectState = where on the strip to write a solid LED.
 		fill_solid(leds, numpixels, CRGB::Black);
 		leds[state->intEffectState] = state->color;
 	});
-	add("Dot Beat", true, [](EffectState *state){
+	addEffect("Dot Beat", true, [](EffectState *state){
 		uint8_t fadeval = 224; //Trail behind the LED's. Lower => faster fade.
 		uint8_t bpm = 30;
 
@@ -67,7 +88,7 @@ EffectManager::EffectManager() {
 		nscale8(leds,numpixels,fadeval); // Fade the entire array. Or for just a few LED's, use  nscale8(&leds[2], 5, fadeval);
 	
 	});
-	add("Ease Me", true, [](EffectState *state){
+	addEffect("Ease Me", true, [](EffectState *state){
 		//state->boolEffectState: Whether to reverse the thing
 		static uint8_t easeOutVal = 0;
 		static uint8_t easeInVal  = 0;
@@ -93,7 +114,7 @@ EffectManager::EffectManager() {
 		fadeToBlackBy(leds, numpixels, 32);                     // 8 bit, 1 = slow, 255 = fast
 	
 	});
-	add("Fast Circ", true, [](EffectState *state){
+	addEffect("Fast Circ", true, [](EffectState *state){
 		//state->intEffectState is how far down the cycle we are (out of thisgap).
 		//state->boolEffectState is whether it's reversed
 
@@ -109,7 +130,7 @@ EffectManager::EffectManager() {
 		fadeToBlackBy(leds, numpixels, 24);
 	
 	});
-	add("Confetti", true, [](EffectState *state){
+	addEffect("Confetti", true, [](EffectState *state){
 		uint8_t thisfade = 16; //How quickly does it fade? Lower = slower fade rate.
 		int thishue = 50; //Starting hue.
 		uint8_t thisinc = 1; //Incremental value for rotating hues
@@ -131,7 +152,7 @@ EffectManager::EffectManager() {
 		leds[pos] += CHSV((thishue + random16(huediff))/4 , thissat, thisbri); //I use 12 bits for hue so that the hue increment isn't too quick.
 		thishue = thishue + thisinc; //It increments here.
 	});
-	add("Juggle", true, [](EffectState *state){
+	addEffect("Juggle", true, [](EffectState *state){
 		uint8_t numdots = 4; //Number of dots in use.
 		uint8_t faderate = 2; //How long should the trails be. Very low value = longer trails.
 		uint8_t hueinc = 16; //Incremental change in hue between each dot.
@@ -155,7 +176,7 @@ EffectManager::EffectManager() {
 		}
 	
 	});
-	add("Lightning", false, [](EffectState *state){
+	addEffect("Lightning", false, [](EffectState *state){
 		fill_solid(leds, numpixels, CRGB::Black);
 
 		uint8_t frequency = 50; //controls the interval between strikes
@@ -209,20 +230,22 @@ EffectManager::EffectManager() {
 		state->intEffectState3 = ledlen;
 	
 	});
-	add("Fill from palette", false, [](EffectState *state){
+	addEffect("Fill from palette", false, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 0, state->currentPalette, 255, LINEARBLEND);
 	});
-	add("Rotate palette", true, [](EffectState *state){
+	addEffect("Rotate palette", true, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
 	});
-	add("Noise8", true, [](EffectState *state) {
+	addEffect("Noise16", true, [](EffectState *state) {
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		//          led array  led count  octaves  x  scale  hue_octaves  hue_x  hue_scale  time
-		fill_noise8(leds,      numpixels, 1,       0, 1,     1,           beatA, 20,        millis());
+		//fill_noise8(leds,      numpixels, 1,       0, 1,     1,           beatA, 20,        millis());
+		fill_noise16(leds,      numpixels, 10,     99,1,     2,           0,     5,         millis()/2);
+		//                                            ^ does nothing???          ^ bigger = smaller bands
 	});
 	
-	Serial.print("[e.cpp] "); Serial.print(count); Serial.println(" effects loaded. Please pull forward for your total");
+	Serial.print("[e.cpp] "); Serial.print(efxCount); Serial.println(" effects loaded. Please pull forward for your total");
 }
 
