@@ -54,7 +54,6 @@ EffectManager::EffectManager() {
 		leds[state->intEffectState] = state->color;
 	});
 	add("Dot Beat", true, [](EffectState *state){
-		uint8_t count = 0; //Count up to 255 and then reverts to 0
 		uint8_t fadeval = 224; //Trail behind the LED's. Lower => faster fade.
 		uint8_t bpm = 30;
 
