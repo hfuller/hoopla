@@ -23,12 +23,12 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			43
+#define VERSION			44
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
 
-#define FRAMERATE		60					//how many frames per second to we ideally want to run
+#define TARGET_FRAMERATE		60					//how many frames per second to we ideally want to run
 
 const char* ssid = "";
 const char* password = "";
@@ -48,6 +48,7 @@ CRGB leds[400];					//NOTE: we write all pixels in some cases, like when blankin
 unsigned long timer1s;
 unsigned long frameCount;
 unsigned long lastWirelessChange;
+double actualFrameRate;
 
 //EFFECT SHIT
 EffectManager emgr; //lol
@@ -253,7 +254,7 @@ void setup() {
 	Serial.print("[start] Setting maximum milliamps to "); Serial.println(maxLoadMilliamps);
 	FastLED.setMaxPowerInVoltsAndMilliamps(5,maxLoadMilliamps); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
-	FastLED.setMaxRefreshRate(FRAMERATE);
+	FastLED.setMaxRefreshRate(TARGET_FRAMERATE);
 	for ( int i=0; i<numpixels; i++ ) { //TODO
 		leds[i] = CRGB::Black; 
 	}
@@ -496,6 +497,8 @@ void setup() {
 		unsigned long uptime = millis();
 		server.sendContent(String("<h2>Up for about ") + (uptime/60000) + " minutes</h2>");
 
+		server.sendContent(String("<h2>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps");
+
 		server.sendContent(R"(
 			<form method='POST' action='/debug/reset'>
 			<button type='submit'>Restart</button>
@@ -645,8 +648,8 @@ void loop() {
 
 		//time to do our every-second tasks
 		#ifdef DEBUG
-		double fr = (double)frameCount/((double)(millis()-timer1s)/1000);
-		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(fr);
+		actualFrameRate = (double)frameCount/((double)(millis()-timer1s)/1000);
+		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(actualFrameRate);
 		uint32_t loadmw = calculate_unscaled_power_mW(leds,numpixels);
 		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw/5); Serial.print("mA) - ");
 		Serial.print("Wi-Fi: "); Serial.print( (WiFi.status() == WL_CONNECTED) ? "Connected" : "Disconnected");
