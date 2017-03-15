@@ -644,7 +644,8 @@ void setup() {
         });
 	
 	state.color = CRGB::Green; runLeds();
-	Serial.println("[start] Startup complete.");
+	Serial.println("[start] Startup complete. Switching to a somewhat new effect.");
+	effect = emgrLoadedCount - 4;
 }
 
 void loop() {
@@ -680,9 +681,12 @@ void loop() {
 		timer1s = millis();
 		frameCount = 0;
 
+		/*
 		if ( effect <= 2 && millis() < 10000 ) {
+			//we are stuck in a status display
 			effect = 6;
 		}
+		*/
 
 	}
 	EVERY_N_MILLISECONDS(5000) {
