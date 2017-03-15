@@ -13,6 +13,7 @@
 #include <ESP8266WebServer.h>
 #include <FS.h>
 #include <EEPROM.h>
+#include <ESP8266httpUpdate.h>
 
 //Effects loading
 #include "effects.h"
@@ -22,7 +23,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			37
+#define VERSION			40
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -500,6 +501,39 @@ void setup() {
 		else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
 		else if (error == OTA_END_ERROR) Serial.println("End Failed");
 	});
+
+	Serial.println("[start] Starting HTTP Update Checker");
+	ESPhttpUpdate.rebootOnUpdate(false);
+	server.on("/update/check", [&](){
+                server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+                server.send(200, "text/html", "true");
+		server.client().stop();
+
+		Serial.printf("Starting HTTP update - other functions will be suspended.\r\n");
+		effect = 2;
+		state.color = CRGB::OrangeRed;
+		runLeds();
+		WiFiUDP::stopAll();
+
+		t_httpUpdate_return ret = ESPhttpUpdate.update("http://update.pixilic.com/hoopla.ino.nodemcu.bin");
+		switch(ret) {
+			case HTTP_UPDATE_FAILED:
+			case HTTP_UPDATE_NO_UPDATES:
+				Serial.println("Update failed, or there is no update.");
+				state.color = CRGB::Red;
+				break;
+			case HTTP_UPDATE_OK:
+				Serial.printf("Update Success");
+				state.intEffectState = numpixels-1;
+				state.color = CRGB::Yellow;
+				runLeds();
+				doRestartDevice = true;
+				EEPROM.begin(256);
+				EEPROM.write(6,1);
+				EEPROM.end(); //notify that we just installed an update OTA.
+				break;
+		}
+        });
 	
 	state.color = CRGB::Green; runLeds();
 	Serial.println("[start] Startup complete.");
