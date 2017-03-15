@@ -401,6 +401,7 @@ void setup() {
 			server.sendContent(String("<option value=\"") + i + "\">" + emgr.getPalette(i).name + "</option>");
 		}
 		server.sendContent(R"(
+			</select>
 			<!-- <button type="submit">Set</button> -->
 			</form>
 			<script>
