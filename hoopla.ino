@@ -64,9 +64,6 @@ bool doEffects = true;
 bool allowApMode = true;
 
 void runLeds();
-void handleRoot();
-void handleDebugReset();
-void handleDebugDisconnect();
 void handleEffectSave();
 void handleSetup();
 void handleSetupWifiPost();
@@ -459,8 +456,27 @@ void setup() {
 		)");
 		server.client().stop();
 	});
-	server.on("/debug/reset", handleDebugReset);
-	server.on("/debug/disconnect", handleDebugDisconnect);
+	server.on("/debug/reset", [&](){
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "text/html", header);
+		server.sendContent("\
+			<h1>Debug</h1>\
+			OK. Restarting. (Give it up to 30 seconds.)\
+		");
+		server.client().stop();
+		doRestartDevice = true;
+	});
+	server.on("/debug/disconnect", [&](){
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "text/html", header);
+		server.sendContent("\
+			<h1>Debug</h1>\
+			OK. Disconnecting.\
+		");
+		server.client().stop();
+		delay(500);
+		WiFi.disconnect();
+	});
 	server.on("/debug/test", [&](){
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", "Loading effects... ");
@@ -701,32 +717,6 @@ void runLeds() {
 //HTTP STUFF borrowed from https://github.com/esp8266/Arduino/blob/master/libraries/DNSServer/examples/CaptivePortalAdvanced/CaptivePortalAdvanced.ino
 
 //Boring files
-
-/** Handle root or redirect to captive portal */
-void handleRoot() {
-}
-
-void handleDebugReset() {
-	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-	server.send(200, "text/html", header);
-	server.sendContent("\
-		<h1>Debug</h1>\
-		OK. Restarting. (Give it up to 30 seconds.)\
-	");
-	server.client().stop();
-	doRestartDevice = true;
-}
-void handleDebugDisconnect() {
-	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-	server.send(200, "text/html", header);
-	server.sendContent("\
-		<h1>Debug</h1>\
-		OK. Disconnecting.\
-	");
-	server.client().stop();
-	delay(500);
-	WiFi.disconnect();
-}
 
 void handleEffectSave() {
   Serial.print("[httpd] effect save. ");
