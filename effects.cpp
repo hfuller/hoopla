@@ -2,7 +2,7 @@
 #include "globals.h"
 #include <FastLED.h>
 
-int EffectManager::add(String name, std::function<void(EffectState *state)> run) {
+int EffectManager::add(String name, bool useForAttractMode, std::function<void(EffectState *state)> run) {
 	if ( count >= sizeof(efx) ) {
 		Serial.println("[e.cpp] Couldn't add new effect, the pattern is full!");
 		Serial.print("[e.cpp] sizeof(efx): "); Serial.print(sizeof(efx));
@@ -11,6 +11,7 @@ int EffectManager::add(String name, std::function<void(EffectState *state)> run)
 	}
 	Serial.print("[e.cpp] Adding effect "); Serial.print(name); Serial.print(" in slot "); Serial.println(count);
 	efx[count].name = name;
+	efx[count].useForAttractMode = useForAttractMode;
 	efx[count].run = run;
 	return(count++);
 }
@@ -31,10 +32,10 @@ EffectManager::EffectManager() {
 	count = 0;
 	Serial.println("[e.cpp] Loading effects");
 
-	add("Solid All", [](EffectState *state){
+	add("Solid All", false, [](EffectState *state){
 		fill_solid(leds, numpixels, state->color);
 	});
-	add("Blink One", [](EffectState *state){
+	add("Blink One", false, [](EffectState *state){
 		//state->intEffectState = where on the strip to blink.
 		EVERY_N_MILLISECONDS(500) {
 			if ( state->nextColor == CRGB(0,0,0) ) {
@@ -47,12 +48,12 @@ EffectManager::EffectManager() {
 		fill_solid(leds, numpixels, CRGB::Black);
 		leds[state->intEffectState] = state->nextColor;
 	});
-	add("Solid One", [](EffectState *state){
+	add("Solid One", false, [](EffectState *state){
 		//state->intEffectState = where on the strip to write a solid LED.
 		fill_solid(leds, numpixels, CRGB::Black);
 		leds[state->intEffectState] = state->color;
 	});
-	add("Dot Beat", [](EffectState *state){
+	add("Dot Beat", true, [](EffectState *state){
 		uint8_t count = 0; //Count up to 255 and then reverts to 0
 		uint8_t fadeval = 224; //Trail behind the LED's. Lower => faster fade.
 		uint8_t bpm = 30;
@@ -67,7 +68,7 @@ EffectManager::EffectManager() {
 		nscale8(leds,numpixels,fadeval); // Fade the entire array. Or for just a few LED's, use  nscale8(&leds[2], 5, fadeval);
 	
 	});
-	add("Ease Me", [](EffectState *state){
+	add("Ease Me", true, [](EffectState *state){
 		//state->boolEffectState: Whether to reverse the thing
 		static uint8_t easeOutVal = 0;
 		static uint8_t easeInVal  = 0;
@@ -93,7 +94,7 @@ EffectManager::EffectManager() {
 		fadeToBlackBy(leds, numpixels, 32);                     // 8 bit, 1 = slow, 255 = fast
 	
 	});
-	add("Fast Circ", [](EffectState *state){
+	add("Fast Circ", true, [](EffectState *state){
 		//state->intEffectState is how far down the cycle we are (out of thisgap).
 		//state->boolEffectState is whether it's reversed
 
@@ -109,7 +110,7 @@ EffectManager::EffectManager() {
 		fadeToBlackBy(leds, numpixels, 24);
 	
 	});
-	add("Confetti", [](EffectState *state){
+	add("Confetti", true, [](EffectState *state){
 		uint8_t thisfade = 16; //How quickly does it fade? Lower = slower fade rate.
 		int thishue = 50; //Starting hue.
 		uint8_t thisinc = 1; //Incremental value for rotating hues
@@ -131,7 +132,7 @@ EffectManager::EffectManager() {
 		leds[pos] += CHSV((thishue + random16(huediff))/4 , thissat, thisbri); //I use 12 bits for hue so that the hue increment isn't too quick.
 		thishue = thishue + thisinc; //It increments here.
 	});
-	add("Juggle", [](EffectState *state){
+	add("Juggle", true, [](EffectState *state){
 		uint8_t numdots = 4; //Number of dots in use.
 		uint8_t faderate = 2; //How long should the trails be. Very low value = longer trails.
 		uint8_t hueinc = 16; //Incremental change in hue between each dot.
@@ -155,7 +156,7 @@ EffectManager::EffectManager() {
 		}
 	
 	});
-	add("Lightning", [](EffectState *state){
+	add("Lightning", false, [](EffectState *state){
 		fill_solid(leds, numpixels, CRGB::Black);
 
 		uint8_t frequency = 50; //controls the interval between strikes
@@ -209,11 +210,11 @@ EffectManager::EffectManager() {
 		state->intEffectState3 = ledlen;
 	
 	});
-	add("Fill from palette", [](EffectState *state){
+	add("Fill from palette", false, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 0, state->currentPalette, 255, LINEARBLEND);
 	});
-	add("Rotate palette", [](EffectState *state){
+	add("Rotate palette", true, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
 	});

@@ -21,6 +21,7 @@ struct EffectState {
 class Effect {
 	public:
 		String name;
+		bool useForAttractMode;
 		std::function<void(EffectState *state)> run;
 };
 
@@ -29,7 +30,7 @@ class EffectManager {
 	int count;
 	public:
 		EffectManager();
-		int add(String name, std::function<void(EffectState *state)> run);
+		int add(String name, bool useForAttractMode, std::function<void(EffectState *state)> run);
 		Effect get(int idx);
 		int getCount();
 };

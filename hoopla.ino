@@ -22,7 +22,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			36
+#define VERSION			37
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -50,8 +50,9 @@ unsigned long lastWirelessChange;
 
 //EFFECT SHIT
 EffectManager emgr; //lol
-byte effect = 2;
-boolean attractMode = true;
+int emgrLoadedCount = 0;
+int effect = 2;
+boolean attractMode = false;
 EffectState state;
 
 bool isAP = false;
@@ -270,6 +271,8 @@ void setup() {
 	Serial.println("[start] Starting bleeding edge effects loader");
 	state.color = CRGB::Orange; runLeds();
 	emgr = EffectManager(); //is there an echo in here?
+	emgrLoadedCount = emgr.getCount();
+	Serial.print("[start] loader loaded "); Serial.println(emgrLoadedCount);
 
 	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID()); //Serial.print(" with key: "); Serial.println(WiFi.psk());
 	WiFi.SSID().toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
@@ -411,18 +414,21 @@ void setup() {
 		server.client().stop(); // Stop is needed because we sent no content length
 	});
 	server.on("/effects", HTTP_GET, [&](){
-		aJsonObject * root = aJson.createArray();
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "application/json", "[");
 		
 		aJsonObject * e;
 		for ( int i=0; i < emgr.getCount(); i++ ) {
 			e = aJson.createObject();
 			aJson.addNumberToObject(e, "id", i);
 			aJson.addStringToObject(e, "name", emgr.get(i).name.c_str());
-			aJson.addItemToArray(root, e);
+			server.sendContent(aJson.print(e));
+			if ( i < emgr.getCount()-1 ) {
+				server.sendContent(", ");
+			}
 		}
+		server.sendContent("]");
 
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", aJson.print(root));
 		server.client().stop();
 	});
 	server.on("/effects/current", HTTP_GET, [&](){
@@ -621,10 +627,12 @@ void loop() {
 
 	EVERY_N_MILLISECONDS(10000) {
 		if ( attractMode ) {
-			effect++;
-			if ( effect >= emgr.getCount() ) {
-				effect = 3; //skip 1-led methods
-			}
+			do {
+				effect++;
+				if ( effect >= emgrLoadedCount ) {
+					effect = 0; //loop back to beginning if we've tried all effects
+				}
+			} while ( ! emgr.get(effect).useForAttractMode ); //Skip any effects that don't want to be seen in attract mode
 		}
 	}
 
@@ -691,6 +699,12 @@ void handleDebugDisconnect() {
 void handleEffectSave() {
   Serial.print("[httpd] effect save. ");
   effect = server.arg("id").toInt();
+  if ( effect < 0 ) { //HACK to enable attract mode
+    effect = 3; //move past the single LED ones.
+    attractMode = true;
+  } else {
+    attractMode = false;
+  }
   Serial.println(effect);
   server.sendHeader("Location", "/?ok", true);
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
