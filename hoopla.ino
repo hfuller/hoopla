@@ -23,7 +23,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			40
+#define VERSION			41
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -53,7 +53,7 @@ unsigned long lastWirelessChange;
 EffectManager emgr; //lol
 int emgrLoadedCount = 0;
 int effect = 2;
-boolean attractMode = false;
+boolean attractMode = true;
 EffectState state;
 
 bool isAP = false;
