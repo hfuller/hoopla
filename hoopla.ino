@@ -394,7 +394,7 @@ void setup() {
 			<form method="PUT" action="/effects/current">
 			<select name="id" id="id">
 		)");
-		for ( int i=0; i < emgr.getCount(); i++ ) {
+		for ( int i=0; i < emgrLoadedCount; i++ ) {
 			server.sendContent(String("<option value=\"") + i + "\">" + emgr.get(i).name + "</option>");
 		}
 		server.sendContent(R"(
@@ -417,13 +417,10 @@ void setup() {
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "application/json", "[");
 		
-		aJsonObject * e;
-		for ( int i=0; i < emgr.getCount(); i++ ) {
-			e = aJson.createObject();
-			aJson.addNumberToObject(e, "id", i);
-			aJson.addStringToObject(e, "name", emgr.get(i).name.c_str());
-			server.sendContent(aJson.print(e));
-			if ( i < emgr.getCount()-1 ) {
+		for ( int i=0; i < emgrLoadedCount; i++ ) {
+			String json = String() + "{\"id\":" + String(i) + ", \"name\":\"" + emgr.get(i).name + "\"}";
+			server.sendContent(json);
+			if ( i < emgrLoadedCount-1 ) {
 				server.sendContent(", ");
 			}
 		}
@@ -432,12 +429,10 @@ void setup() {
 		server.client().stop();
 	});
 	server.on("/effects/current", HTTP_GET, [&](){
-		aJsonObject * j = aJson.createObject();
-		aJson.addNumberToObject(j, "id", effect);
-		aJson.addStringToObject(j, "name", emgr.get(effect).name.c_str());
+		String json = String() + "{\"id\":" + String(effect) + ", \"name\":\"" + emgr.get(effect).name + "\"}";
 		
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", aJson.print(j));
+		server.send(200, "text/html", json);
 		server.client().stop();
 	});
 	server.on("/effects/current", HTTP_PUT, handleEffectSave);
