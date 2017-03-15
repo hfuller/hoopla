@@ -217,6 +217,11 @@ EffectManager::EffectManager() {
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
 	});
+	add("Noise8", true, [](EffectState *state) {
+		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
+		//          led array  led count  octaves  x  scale  hue_octaves  hue_x  hue_scale  time
+		fill_noise8(leds,      numpixels, 1,       0, 1,     1,           beatA, 20,        millis());
+	});
 	
 	Serial.print("[e.cpp] "); Serial.print(count); Serial.println(" effects loaded. Please pull forward for your total");
 }
