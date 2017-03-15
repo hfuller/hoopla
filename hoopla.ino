@@ -23,7 +23,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			41
+#define VERSION			42
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -65,7 +65,6 @@ bool allowApMode = true;
 
 void runLeds();
 void handleEffectSave();
-void handleSetup();
 void handleSetupWifiPost();
 void handleSetupLedsPost();
 void handleNotFound();
@@ -433,7 +432,51 @@ void setup() {
 		server.client().stop();
 	});
 	server.on("/effects/current", HTTP_PUT, handleEffectSave);
-	server.on("/setup", handleSetup);
+	server.on("/setup", [&](){
+		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+		server.sendHeader("Pragma", "no-cache");
+		server.sendHeader("Expires", "-1");
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.send(200, "text/html", header); 
+		server.sendContent("\
+			<h1>Setup</h1>\
+			<h4>Nearby networks</h4>\
+			<table>\
+			<tr><th>Name</th><th>Security</th><th>Signal</th></tr>\
+		");
+		Serial.println("[httpd] scan start");
+		int n = WiFi.scanNetworks();
+		Serial.println("[httpd] scan done");
+		for (int i = 0; i < n; i++) {
+			server.sendContent(String() + "\r\n<tr onclick=\"document.getElementById('ssidinput').value=this.firstChild.firstChild.innerHTML; setTimeout(function(){ document.getElementById('pskinput').focus(); }, 100);\"><td><a href=\"#setup-wifi\">" + WiFi.SSID(i) + "</a></td><td>" + String((WiFi.encryptionType(i) == ENC_TYPE_NONE)?"Open":"Encrypted") + "</td><td>" + WiFi.RSSI(i) + "dBm</td></tr>");
+		}
+		server.sendContent(String() + "\
+			</table>\
+			<h4>Connect to a network</h4>\
+			<form method='POST' id='setup-wifi' action='/setup/wifi'>\
+				<input type='text' id='ssidinput' placeholder='network' value='" + String(WiFi.SSID()) + "' name='n'>\
+				<input type='password' id='pskinput' placeholder='password' value='" + String(WiFi.psk()) + "' name='p'>\
+				<button type='submit'>Save and Connect</button>\
+			</form>\
+		");
+		EEPROM.begin(256); byte hardwareType = EEPROM.read(1); EEPROM.end(); //HACK HACK HACK
+		server.sendContent(String() + R"(
+			<h4>LED setup</h4>
+			<h5>Don't touch this stuff!</h5>
+			<form method="POST" action="/setup/leds">
+				<select name="hardware_type" id="hardware_type"><!-- )" + hardwareType + R"( -->
+					<option value="0" )" + (hardwareType==0 ? "selected" : "") + R"(>Custom setup from config.h (set at build)</option>
+					<option value="1" )" + (hardwareType==1 ? "selected" : "") + R"(>NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
+					<option value="2" )" + (hardwareType==2 ? "selected" : "") + R"(>NeoPixels on GPIO5(D1) (Makers Local 256; Synapse Wireless)</option>
+					<option value="3" )" + (hardwareType==3 ? "selected" : "") + R"(>DotStars on GPIO0(D3)/GPIO2(D4) (JC/JB Hoop)</option>
+				</select>
+				<input name="numpixels" placeholder="Number of LEDs" value=")" + numpixels + R"(">
+				<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw" value=")" + maxLoadMilliamps + R"(">
+				<button type="submit">Save</button>
+			</form>
+		)");
+		server.client().stop(); // Stop is needed because we sent no content length
+	});
 	server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
 	server.on("/setup/leds", HTTP_POST, handleSetupLedsPost);
 	server.on("/debug", [&](){
@@ -747,54 +790,6 @@ boolean captivePortal() {
     return true;
   }
   return false;
-}
-
-/** Wifi config page handler */
-void handleSetup() {
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.sendHeader("Pragma", "no-cache");
-  server.sendHeader("Expires", "-1");
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/html", header); 
-  server.sendContent("\
-		<h1>Setup</h1>\
-		<h4>Nearby networks</h4>\
-		<table>\
-		<tr><th>Name</th><th>Security</th><th>Signal</th></tr>\
-  ");
-  Serial.println("[httpd] scan start");
-  int n = WiFi.scanNetworks();
-  Serial.println("[httpd] scan done");
-  for (int i = 0; i < n; i++) {
-    server.sendContent(String() + "\r\n<tr onclick=\"document.getElementById('ssidinput').value=this.firstChild.innerHTML;\"><td>" + WiFi.SSID(i) + "</td><td>" + String((WiFi.encryptionType(i) == ENC_TYPE_NONE)?"Open":"Encrypted") + "</td><td>" + WiFi.RSSI(i) + "dBm</td></tr>");
-  }
-  //server.sendContent(String() + "<tr><td>SSID " + String(WiFi.SSID()) + "</td></tr>");
-  server.sendContent(String() + "\
-		</table>\
-		<h4>Connect to a network</h4>\
-		<form method='POST' action='/setup/wifi'>\
-			<input type='text' id='ssidinput' placeholder='network' value='" + String(WiFi.SSID()) + "' name='n'>\
-			<input type='password' placeholder='password' value='" + String(WiFi.psk()) + "' name='p'>\
-			<button type='submit'>Save and Connect</button>\
-		</form>\
-  ");
-  EEPROM.begin(256); byte hardwareType = EEPROM.read(1); EEPROM.end(); //HACK HACK HACK
-  server.sendContent(String() + R"(
-<h4>LED setup</h4>
-<h5>Don't touch this stuff!</h5>
-<form method="POST" action="/setup/leds">
-	<select name="hardware_type" id="hardware_type"><!-- )" + hardwareType + R"( -->
-		<option value="0" )" + (hardwareType==0 ? "selected" : "") + R"(>Custom setup from config.h (set at build)</option>
-		<option value="1" )" + (hardwareType==1 ? "selected" : "") + R"(>NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
-		<option value="2" )" + (hardwareType==2 ? "selected" : "") + R"(>NeoPixels on GPIO5(D1) (Makers Local 256; Synapse Wireless)</option>
-		<option value="3" )" + (hardwareType==3 ? "selected" : "") + R"(>DotStars on GPIO0(D3)/GPIO2(D4) (JC/JB Hoop)</option>
-	</select>
-	<input name="numpixels" placeholder="Number of LEDs" value=")" + numpixels + R"(">
-	<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw" value=")" + maxLoadMilliamps + R"(">
-	<button type="submit">Save</button>
-</form>
-  )");
-  server.client().stop(); // Stop is needed because we sent no content length
 }
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
