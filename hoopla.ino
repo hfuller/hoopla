@@ -709,10 +709,6 @@ void loop() {
 	
 	EVERY_N_MILLISECONDS(1000) {
 
-		if ( doRestartDevice ) {
-			ESP.restart();
-		}
-
 		//time to do our every-second tasks
 		#ifdef DEBUG
 		actualFrameRate = (double)frameCount/((double)(millis()-timer1s)/1000);
@@ -735,6 +731,10 @@ void loop() {
 
 	}
 	EVERY_N_MILLISECONDS(5000) {
+
+		if ( doRestartDevice ) {
+			ESP.restart();
+		}
 
 		//do Wi-Fi stuff
 
