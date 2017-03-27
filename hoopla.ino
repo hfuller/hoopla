@@ -954,7 +954,7 @@ CHSV getCHSV(const CRGB& color) { //from neopixelbus
 
 void spiffsWrite(String path, String contents) {
 	File f = SPIFFS.open(path, "w");
-	f.println(contents);
+	f.print(contents);
 	f.close();
 }
 String spiffsRead(String path) {
