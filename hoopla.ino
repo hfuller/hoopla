@@ -261,7 +261,7 @@ void setup() {
 	Serial.println("[start] Starting effects");
 	effect = 2; //solid for status indication
 	//Palette
-	state.currentPalette = LavaColors_p;                           // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	state.currentPalette = RainbowColors_p;                        // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
 	
 	Serial.println("[start] Starting bleeding edge effects loader");
 	state.color = CRGB::Orange; runLeds();
