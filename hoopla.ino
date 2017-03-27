@@ -662,34 +662,30 @@ void setup() {
 	Serial.println("[start] Starting HTTP Update Checker");
 	ESPhttpUpdate.rebootOnUpdate(false);
 	server.on("/update/check", [&](){
-                server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-                server.send(200, "text/html", "true");
-		server.client().stop();
-
-		Serial.printf("Starting HTTP update - other functions will be suspended.\r\n");
+		int oldEffect = effect;
+		
 		effect = 2;
 		state.color = CRGB::OrangeRed;
 		runLeds();
-		WiFiUDP::stopAll();
-
-		t_httpUpdate_return ret = ESPhttpUpdate.update("http://update.pixilic.com/hoopla.ino.nodemcu.bin");
-		switch(ret) {
-			case HTTP_UPDATE_FAILED:
-			case HTTP_UPDATE_NO_UPDATES:
-				Serial.println("Update failed, or there is no update.");
-				state.color = CRGB::Red;
-				break;
-			case HTTP_UPDATE_OK:
-				Serial.printf("Update Success");
-				state.intEffectState = numpixels-1;
-				state.color = CRGB::Yellow;
-				runLeds();
-				doRestartDevice = true;
-				EEPROM.begin(256);
-				EEPROM.write(6,1);
-				EEPROM.end(); //notify that we just installed an update OTA.
-				break;
+		//WiFiUDP::stopAll();
+		
+		boolean result = phoneHome(true);
+		if ( result ) {
+			state.intEffectState = numpixels-1;
+			state.color = CRGB::Yellow;
+			runLeds();
+		} else {
+			Serial.println("[check] Updater returned that an update wasn't needed");
+			effect = oldEffect;
 		}
+
+		String resultStr = "false";
+		if ( result ) { resultStr = "true"; }
+
+                server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+                server.send(200, "text/html", resultStr);
+		server.client().stop();
+
         });
 	
 	state.color = CRGB::Green; runLeds();
@@ -966,5 +962,41 @@ String spiffsRead(String path) {
 	String x = f.readStringUntil('\n');
 	f.close();
 	return x;
+}
+
+boolean phoneHome(boolean doUpdate) {
+
+	Serial.println("[chkup] Phoning home");
+
+	if ( doUpdate ) {
+		Serial.println("[chkup] checking for updates");
+
+		//include the current version as the x-ESP8266-version header.
+		uint32_t flashChipSize = ESP.getFlashChipSize();
+		String platform = "generic";
+		if ( flashChipSize == 4194304 ) {
+			platform = "nodemcu"; //HACK HACK HACK
+		}
+		String url = String("http://update.pixilic.com/hoopla.ino.") + platform + ".bin";
+		String versionHeader = String("{\"flashChipSize\":") + String(flashChipSize) + ", \"version\":" + String(VERSION) + ", \"name\":\"" + devHostName + "\"}";
+
+		t_httpUpdate_return ret = ESPhttpUpdate.update(url, versionHeader);
+		switch(ret) {
+			case HTTP_UPDATE_FAILED:
+			case HTTP_UPDATE_NO_UPDATES:
+				Serial.println("[chkup] Update failed, or there is no update.");
+				return false;
+				break;
+			case HTTP_UPDATE_OK:
+				Serial.printf("[chkup] Update Success");
+				EEPROM.begin(256);
+				EEPROM.write(6,1);
+				EEPROM.end(); //notify that we just installed an update OTA.
+				doRestartDevice = true;
+				return true;
+				break;
+		}
+	}
+	return false;
 }
 
