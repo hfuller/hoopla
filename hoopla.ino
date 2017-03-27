@@ -855,7 +855,7 @@ void handleSetupWifiPost() {
   server.arg("p").toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
   Serial.print("ssid: "); Serial.print(ssidTemp);
   Serial.print(" pass: "); Serial.println(passwordTemp);
-  server.sendHeader("Location", "/?saved", true);
+  server.sendHeader("Location", "/setup?saved", true);
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "-1");
