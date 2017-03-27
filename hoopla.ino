@@ -555,7 +555,7 @@ void setup() {
 		server.sendContent(String("<h2>Version ") + VERSION + "</h2>");
 
 		unsigned long uptime = millis();
-		server.sendContent(String("<h2>Up for about ") + (uptime/60000) + " minutes</h2>");
+		server.sendContent(String("<h2>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</h2>");
 
 		server.sendContent(String("<h2>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps");
 
