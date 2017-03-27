@@ -23,7 +23,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			45
+#define VERSION			46
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -66,7 +66,6 @@ bool allowApMode = true;
 
 void runLeds();
 void handleSetupWifiPost();
-void handleSetupLedsPost();
 void handleNotFound();
 boolean captivePortal();
 boolean isIp(String str);
@@ -488,6 +487,15 @@ void setup() {
 				<button type='submit'>Save and Connect</button>\
 			</form>\
 		");
+
+		server.sendContent(String() + R"(
+			<h4>Device setup</h4>
+			<form method="POST" id="setup-device" action="/setup/device">
+				<input name="name" placeholder="Device name" value=")" + spiffsRead("/name") + R"(">
+				<button type="submit">Save</button>
+			</form>
+		)");
+
 		EEPROM.begin(256); byte hardwareType = EEPROM.read(1); EEPROM.end(); //HACK HACK HACK
 		server.sendContent(String() + R"(
 			<h4>LED setup</h4>
@@ -507,7 +515,38 @@ void setup() {
 		server.client().stop(); // Stop is needed because we sent no content length
 	});
 	server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
-	server.on("/setup/leds", HTTP_POST, handleSetupLedsPost);
+	server.on("/setup/leds", HTTP_POST, [&](){
+		Serial.print("[httpd] LED settings post. ");
+		EEPROM.begin(256);
+	
+		EEPROM.write(1, server.arg("hardware_type").toInt());	
+		Serial.print(EEPROM.read(1)); Serial.print("->1 ");
+	
+		numpixels = server.arg("numpixels").toInt();
+		EEPROM.write(2, (numpixels>>8) & 0xFF);   //number of pixels (MSB)
+		EEPROM.write(3, numpixels & 0xFF); //number of pixels (LSB)
+		Serial.print(EEPROM.read(2)); Serial.print("->2 ");
+		Serial.print(EEPROM.read(3)); Serial.print("->3 ");
+	
+		maxLoadMilliamps = server.arg("maxLoadMilliamps").toInt();
+		EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);
+		EEPROM.write(5, maxLoadMilliamps & 0xFF);
+	
+		EEPROM.end(); //write it out on an ESP
+		server.sendHeader("Location", "/setup?saved", true);
+		server.send ( 302, "text/plain", "");
+		server.client().stop();
+		Serial.println("done. "); 
+	});
+	server.on("/setup/device", HTTP_POST, [&](){
+		Serial.print("[httpd] Device settings post. ");
+		spiffsWrite("/name", server.arg("name"));
+		
+		server.sendHeader("Location", "/setup?saved", true);
+		server.send(302, "text/plain", "");
+		server.client().stop();
+		Serial.println("done.");
+	});
 	server.on("/debug", [&](){
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", header);
@@ -553,8 +592,18 @@ void setup() {
 	});
 	server.on("/debug/test", [&](){
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", "Loading effects... ");
-		EffectManager emgr = EffectManager();
+		server.send(200, "text/html", "Testing stuff... ");
+
+		uint32_t flashChipSize = ESP.getFlashChipSize();
+		String platform = "generic";
+		if ( flashChipSize == 4194304 ) {
+			platform = "nodemcu"; //HACK HACK HACK
+		}
+		String url = String("http://update.pixilic.com/hoopla.ino.") + platform + ".bin";
+		String versionHeader = String("{\"flashChipSize\":") + String(flashChipSize) + ", \"version\":" + String(VERSION) + ", \"name\":\"" + String(devHostName) + "\"}";
+		server.sendContent(url);
+		server.sendContent(versionHeader);
+
 		server.sendContent("done.");
 		server.client().stop();
 	});
@@ -820,30 +869,6 @@ void handleSetupWifiPost() {
 
   //Commenting this out because the 'doConnect' process will do it.
   //WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
-}
-
-void handleSetupLedsPost() {
-	Serial.print("[httpd] LED settings post. ");
-	EEPROM.begin(256);
-
-	EEPROM.write(1, server.arg("hardware_type").toInt());	
-	Serial.print(EEPROM.read(1)); Serial.print("->1 ");
-
-	numpixels = server.arg("numpixels").toInt();
-	EEPROM.write(2, (numpixels>>8) & 0xFF);   //number of pixels (MSB)
-	EEPROM.write(3, numpixels & 0xFF); //number of pixels (LSB)
-	Serial.print(EEPROM.read(2)); Serial.print("->2 ");
-	Serial.print(EEPROM.read(3)); Serial.print("->3 ");
-
-	maxLoadMilliamps = server.arg("maxLoadMilliamps").toInt();
-	EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);
-	EEPROM.write(5, maxLoadMilliamps & 0xFF);
-
-	EEPROM.end(); //write it out on an ESP
-	server.sendHeader("Location", "/?saved", true);
-	server.send ( 302, "text/plain", "");
-	server.client().stop();
-	Serial.println("done. "); 
 }
 
 void handleNotFound() {
