@@ -256,13 +256,20 @@ EffectManager::EffectManager() {
 	});	
 
 	Serial.println("[e.cpp] Loading palettes");
-	addPalette("Rainbow Gradient", RainbowColors_p);
-	addPalette("Rainbow Stripe", RainbowStripeColors_p);
+	addPalette("Rainbow gradient", RainbowColors_p);
+	addPalette("Rainbow stripe", RainbowStripeColors_p);
 	addPalette("Ocean", OceanColors_p);
 	addPalette("Cloud", CloudColors_p);
 	addPalette("Lava", LavaColors_p);
 	addPalette("Forest", ForestColors_p);
 	addPalette("Party", PartyColors_p);
+
+	CRGBPalette16 tempPalette;
+	
+	for( int i = 0; i < 16; i++) {
+		tempPalette[i] = CHSV( random8(), 255, random8());
+	}
+	addPalette("Random colors", tempPalette);
 	
 	Serial.print("[e.cpp] "); Serial.print(efxCount); Serial.println(" effects loaded. Please pull forward for your total");
 }
