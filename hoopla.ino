@@ -262,6 +262,7 @@ void setup() {
 	FastLED.setMaxPowerInVoltsAndMilliamps(5,maxLoadMilliamps); //assuming 5V
 	FastLED.setCorrection(TypicalSMD5050);
 	FastLED.setMaxRefreshRate(TARGET_FRAMERATE);
+	FastLED.setDither(0); //For POV stuff, so, yeah. HACK maybe
 	for ( int i=0; i<numpixels; i++ ) { //TODO
 		leds[i] = CRGB::Black; 
 	}
