@@ -31,6 +31,8 @@ ADC_MODE(ADC_VCC);
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
 
 #define TARGET_FRAMERATE		60					//how many frames per second to we ideally want to run
+#define BATTERY_LOW_MV			2800
+#define BATTERY_DEAD_MV			2550
 
 const char* ssid = "";
 const char* password = "";
@@ -272,6 +274,7 @@ void setup() {
 	effect = 2; //solid for status indication
 	//Palette
 	state.currentPalette = RainbowColors_p;                        // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	state.lowPowerMode = false;
 	
 	Serial.println("[start] Starting bleeding edge effects loader");
 	state.color = CRGB::Orange; runLeds();
@@ -552,18 +555,14 @@ void setup() {
 		EEPROM.write(7, brightness);
 	
 		EEPROM.end(); //write it out on an ESP
-		server.sendHeader("Location", "/setup?saved", true);
-		server.send ( 302, "text/plain", "");
-		server.client().stop();
+		send302("/setup?saved");
 		Serial.println("done. "); 
 	});
 	server.on("/setup/device", HTTP_POST, [&](){
 		Serial.print("[httpd] Device settings post. ");
 		spiffsWrite("/name", server.arg("name"));
 		
-		server.sendHeader("Location", "/setup?saved", true);
-		server.send(302, "text/plain", "");
-		server.client().stop();
+		send302("/setup?saved");
 		Serial.println("done.");
 	});
 	server.on("/debug", [&](){
@@ -576,39 +575,33 @@ void setup() {
 		unsigned long uptime = millis();
 		server.sendContent(String("<h2>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</h2>");
 
-		uint16_t voltage = ESP.getVcc();
-		server.sendContent(String("<h2>Battery: ") + (voltage+500) + "mV (Raw: " + voltage + ")</h2>");
+		server.sendContent(String("<h2>Battery: ") + getAdjustedVcc() + "mV (Raw: " + ESP.getVcc() + ")</h2>");
 
 		server.sendContent(String("<h2>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps");
 
 		server.sendContent(R"(
+			<form method="POST" action="/debug/lowpowermode">
+				<button type="submit">Go into low power mode now</button>
+			</form>
 			<form method='POST' action='/debug/reset'>
-			<button type='submit'>Restart</button>
+				<button type='submit'>Restart</button>
 			</form>
 			<form method='POST' action='/debug/disconnect'>
-			<button type='submit'>Forget connection info</button>
+				<button type='submit'>Forget connection info</button>
 			</form>
 		)");
 		server.client().stop();
 	});
+	server.on("/debug/lowpowermode", [&](){
+		send302("/debug?done");
+		state.lowPowerMode = true;
+	});
 	server.on("/debug/reset", [&](){
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", header);
-		server.sendContent("\
-			<h1>Debug</h1>\
-			OK. Restarting. (Give it up to 30 seconds.)\
-		");
-		server.client().stop();
+		send302("/debug?done");
 		doRestartDevice = true;
 	});
 	server.on("/debug/disconnect", [&](){
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", header);
-		server.sendContent("\
-			<h1>Debug</h1>\
-			OK. Disconnecting.\
-		");
-		server.client().stop();
+		send302("/debug?done");
 		delay(500);
 		WiFi.disconnect();
 	});
@@ -711,8 +704,8 @@ void setup() {
         });
 	
 	state.color = CRGB::Green; runLeds();
-	Serial.println("[start] Startup complete. Switching to a somewhat new effect.");
-	effect = emgrLoadedCount - 4;
+	Serial.println("[start] Startup complete.");
+	effect = 6;
 }
 
 void loop() {
@@ -732,6 +725,19 @@ void loop() {
 	EVERY_N_MILLISECONDS(1000) {
 
 		//time to do our every-second tasks
+
+		uint16_t voltage = getAdjustedVcc();
+		if ( voltage < BATTERY_DEAD_MV ) {
+			Serial.println("[Hbeat] Battery is dead!!!");
+			state.color = CRGB::Red;
+			effect = 2;
+			runLeds();
+			ESP.deepSleep(1234567890, WAKE_RF_DEFAULT); //this will sleep forever since we don't connect the RTC to the reset pin
+		} else if ( voltage < BATTERY_LOW_MV ) {
+			Serial.println("[Hbeat] Battery is low...");
+			state.lowPowerMode = true;
+		}
+
 		#ifdef DEBUG
 		actualFrameRate = (double)frameCount/((double)(millis()-timer1s)/1000);
 		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(actualFrameRate);
@@ -1022,3 +1028,12 @@ boolean phoneHome(boolean doUpdate) {
 	return false;
 }
 
+uint16_t getAdjustedVcc() {
+	return ESP.getVcc()+500;
+}
+
+void send302(String dest) {
+	server.sendHeader("Location", dest, true);
+	server.send ( 302, "text/plain", "");
+	server.client().stop();
+}

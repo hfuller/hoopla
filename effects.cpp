@@ -48,6 +48,12 @@ int EffectManager::getPaletteCount() {
 	return pltCount;
 }
 
+void blankEveryOtherPixel() {
+	for ( int i=0; i < numpixels; i = i+2 ) {
+		leds[i] = CRGB::Black;
+	}
+}
+
 EffectManager::EffectManager() {
 	Serial.println("[e.cpp] Effect Manager!! wooo");
 	efxCount = 0;
@@ -57,6 +63,7 @@ EffectManager::EffectManager() {
 
 	addEffect("Solid All", false, [](EffectState *state){
 		fill_solid(leds, numpixels, state->color);
+		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
 	addEffect("Blink One", false, [](EffectState *state){
 		//state->intEffectState = where on the strip to blink.
@@ -141,7 +148,7 @@ EffectManager::EffectManager() {
 		int huediff = 256; //Range of random #'s to use for hue
 
 		EVERY_N_MILLISECONDS(5000) {
-			//THIS ENTIRE SWITCH STATEMENT IS BROKEN BTW
+			//THIS ENTIRE SWITCH STATEMENT IS BROKEN BTW HACK HACK HACK
 			switch(0) {
 				case 7: thisinc=1; thishue=192; thissat=255; thisfade=16; huediff=256; break;  // You can change values here, one at a time , or altogether.
 				case 8: thisinc=2; thishue=128; thisfade=8; huediff=64; break;
@@ -156,7 +163,10 @@ EffectManager::EffectManager() {
 	});
 	addEffect("Juggle", true, [](EffectState *state){
 		uint8_t numdots = 4; //Number of dots in use.
-		uint8_t faderate = 2; //How long should the trails be. Very low value = longer trails.
+		uint8_t faderate = 10; //How long should the trails be. Very low value = longer trails.
+		if ( state->lowPowerMode ) {
+			faderate = 20;
+		}
 		uint8_t hueinc = 16; //Incremental change in hue between each dot.
 		uint8_t curhue = 0; //The current hue
 		uint8_t basebeat = 5; //Higher = faster movement.
@@ -164,7 +174,7 @@ EffectManager::EffectManager() {
 		uint8_t thissat = 100;
 		uint8_t thisbri = 255;
 		
-		//THIS ENTIRE SWITCH STATEMENT IS TOTALLY BROKEN
+		//THIS ENTIRE SWITCH STATEMENT IS TOTALLY BROKEN HACK HACK HACK
 		switch(0) {
 			case 11: numdots = 1; basebeat = 20; hueinc = 16; faderate = 2; thishue = 0; break;
 			case 12: numdots = 4; basebeat = 10; hueinc = 16; faderate = 8; thishue = 128; break;
@@ -201,6 +211,9 @@ EffectManager::EffectManager() {
 				//new strike. init our values for this set of flashes
 				ledstart = random16(numpixels);           // Determine starting location of flash
 				ledlen = random16(numpixels-ledstart);    // Determine length of flash (not to go beyond numpixels-1)
+				if ( state->lowPowerMode && ledlen > 20 ) {
+					ledlen = 20;
+				}
 				dimmer = 5;
 				nextFlashDelay += 150;   // longer delay until next flash after the leader
 			} else {
@@ -235,10 +248,12 @@ EffectManager::EffectManager() {
 	addEffect("Fill from palette", false, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 0, state->currentPalette, 255, LINEARBLEND);
+		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
 	addEffect("Rotate palette", false, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
+		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
 	addEffect("Noise16", true, [](EffectState *state) {
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
@@ -246,6 +261,7 @@ EffectManager::EffectManager() {
 		//fill_noise8(leds,      numpixels, 1,       0, 1,     1,           beatA, 20,        millis());
 		fill_noise16(leds,      numpixels, 10,     99,1,     2,           0,     5,         millis()/2);
 		//                                            ^ does nothing???          ^ bigger = smaller bands
+		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
 	addEffect("Glitter palette", true, [](EffectState *state) {
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
@@ -253,6 +269,7 @@ EffectManager::EffectManager() {
 		if ( random8() < 200 ) {
 			leds[random16(numpixels)] += CRGB::White;
 		}
+		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});	
 
 	Serial.println("[e.cpp] Loading palettes");

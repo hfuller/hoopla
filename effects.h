@@ -16,6 +16,7 @@ struct EffectState {
 	unsigned long ulongEffectState;
 	unsigned long ulongEffectState2;
 	CRGBPalette16 currentPalette;
+	bool lowPowerMode;
 };
 
 class Effect {
