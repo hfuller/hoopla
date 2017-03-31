@@ -1,3 +1,5 @@
+ADC_MODE(ADC_VCC);
+
 #include "config.h"
 
 //Tell FastLED to use the raw ESP GPIO pin numbers.
@@ -23,7 +25,7 @@
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			47
+#define VERSION			49
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -556,6 +558,9 @@ void setup() {
 
 		unsigned long uptime = millis();
 		server.sendContent(String("<h2>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</h2>");
+
+		uint16_t voltage = ESP.getVcc();
+		server.sendContent(String("<h2>Battery: ") + (voltage+500) + "mV (Raw: " + voltage + ")</h2>");
 
 		server.sendContent(String("<h2>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps");
 
