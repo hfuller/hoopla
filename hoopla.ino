@@ -229,6 +229,13 @@ void setup() {
 		allowApMode = false;
 		EEPROM.write(6,0);
 	}
+	int brightness = EEPROM.read(7);
+	if ( brightness < 1 ) {
+		Serial.println("[start] 0 is not a valid brightness. Setting it to 10");
+		brightness = 10;
+		EEPROM.write(7, brightness);
+	}
+	FastLED.setBrightness(brightness);
 	EEPROM.end(); //write the "EEPROM" to flash (on an ESP anyway)
 
 	Serial.print("[start] Starting "); Serial.print(numpixels); Serial.print(" ");
@@ -498,7 +505,11 @@ void setup() {
 			</form>
 		)");
 
-		EEPROM.begin(256); byte hardwareType = EEPROM.read(1); EEPROM.end(); //HACK HACK HACK
+		EEPROM.begin(256);
+		byte hardwareType = EEPROM.read(1);
+		byte brightness = EEPROM.read(7);
+		EEPROM.end(); //HACK HACK HACK?
+
 		server.sendContent(String() + R"(
 			<h4>LED setup</h4>
 			<h5>Don't touch this stuff!</h5>
@@ -511,6 +522,7 @@ void setup() {
 				</select>
 				<input name="numpixels" placeholder="Number of LEDs" value=")" + numpixels + R"(">
 				<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw" value=")" + maxLoadMilliamps + R"(">
+				<input name="brightness" placeholder="Brightness (1-255) " value=")" + brightness + R"(">
 				<button type="submit">Save</button>
 			</form>
 		)");
@@ -533,6 +545,10 @@ void setup() {
 		maxLoadMilliamps = server.arg("maxLoadMilliamps").toInt();
 		EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);
 		EEPROM.write(5, maxLoadMilliamps & 0xFF);
+
+		int brightness = server.arg("brightness").toInt();
+		FastLED.setBrightness(brightness);
+		EEPROM.write(7, brightness);
 	
 		EEPROM.end(); //write it out on an ESP
 		server.sendHeader("Location", "/setup?saved", true);
