@@ -473,6 +473,36 @@ void setup() {
 		server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
 		server.client().stop(); // Stop is needed because we sent no content length
 	});
+	server.on("/palettes/current", HTTP_GET, [&](){
+		String json = String("[");
+		for ( int i=0; i<16; i++ ) {
+			json += "\"#";
+
+			CRGB clr = state.currentPalette[i];
+			String cmp;
+			
+			cmp = String(clr.r, HEX);
+			if ( cmp.length() < 2 ) { json += "0"; }
+			json += cmp;
+			cmp = String(clr.g, HEX);
+			if ( cmp.length() < 2 ) { json += "0"; }
+			json += cmp;
+			cmp = String(clr.b, HEX);
+			if ( cmp.length() < 2 ) { json += "0"; }
+			json += cmp;
+
+			json += "\"";
+
+			if ( i < 16-1 ) {
+				json += ", ";
+			}
+		}
+		json += "]";
+		
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+                server.send(200, "text/html", json);
+		server.client().stop();
+	});	
 	server.on("/setup", [&](){
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 		server.sendHeader("Pragma", "no-cache");
