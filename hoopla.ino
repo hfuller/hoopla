@@ -611,7 +611,7 @@ void setup() {
 
 		server.sendContent(R"(
 			<form method="POST" action="/debug/lowpowermode">
-				<button type="submit">Go into low power mode now</button>
+				<button type="submit">Toggle low power mode now</button>
 			</form>
 			<form method='POST' action='/debug/reset'>
 				<button type='submit'>Restart</button>
@@ -624,7 +624,7 @@ void setup() {
 	});
 	server.on("/debug/lowpowermode", [&](){
 		send302("/debug?done");
-		state.lowPowerMode = true;
+		state.lowPowerMode = !(state.lowPowerMode);
 	});
 	server.on("/debug/reset", [&](){
 		send302("/debug?done");

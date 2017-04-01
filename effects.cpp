@@ -165,7 +165,7 @@ EffectManager::EffectManager() {
 		uint8_t numdots = 4; //Number of dots in use.
 		uint8_t faderate = 10; //How long should the trails be. Very low value = longer trails.
 		if ( state->lowPowerMode ) {
-			faderate = 20;
+			faderate = 40;
 		}
 		uint8_t hueinc = 16; //Incremental change in hue between each dot.
 		uint8_t curhue = 0; //The current hue
