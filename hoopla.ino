@@ -616,6 +616,9 @@ void setup() {
 			<form method='POST' action='/debug/reset'>
 				<button type='submit'>Restart</button>
 			</form>
+			<form method="POST" action="/debug/sleepforever">
+				<button type="submit">Simulate dead battery - go to sleep forever</button>
+			</form>
 			<form method='POST' action='/debug/disconnect'>
 				<button type='submit'>Forget connection info</button>
 			</form>
@@ -629,6 +632,10 @@ void setup() {
 	server.on("/debug/reset", [&](){
 		send302("/debug?done");
 		doRestartDevice = true;
+	});
+	server.on("/debug/sleepforever", [&](){
+		send302("/debug?done");
+		sleepForever();
 	});
 	server.on("/debug/disconnect", [&](){
 		send302("/debug?done");
@@ -732,10 +739,16 @@ void setup() {
 		server.client().stop();
 
         });
-	
+
 	state.color = CRGB::Green; runLeds();
-	Serial.println("[start] Startup complete.");
 	effect = 6;
+
+	Serial.println("[start] Checking battery");
+	checkBattery(false); //don't actually shut down even if we are dead. We will do that later
+
+	delay(1000);
+
+	Serial.println("[start] Startup complete.");
 }
 
 void loop() {
@@ -858,17 +871,7 @@ void loop() {
 	}
 
 	EVERY_N_MILLISECONDS(10000) {
-		uint16_t voltage = getAdjustedVcc();
-		if ( voltage < BATTERY_DEAD_MV ) {
-			Serial.println("[Hbeat] Battery is dead!!!");
-			state.color = CRGB::Red;
-			effect = 2;
-			runLeds();
-			ESP.deepSleep(1234567890, WAKE_RF_DEFAULT); //this will sleep forever since we don't connect the RTC to the reset pin
-		} else if ( voltage < BATTERY_LOW_MV ) {
-			Serial.println("[Hbeat] Battery is low...");
-			state.lowPowerMode = true;
-		}
+		checkBattery(true); //shutdown if we are dead
 
 		if ( attractMode ) {
 			do {
@@ -1066,4 +1069,31 @@ void send302(String dest) {
 	server.sendHeader("Location", dest, true);
 	server.send ( 302, "text/plain", "");
 	server.client().stop();
+}
+
+void sleepForever() {
+	Serial.println("[sleep] Sleeping forever.");
+
+	ESP.deepSleep(0, WAKE_RF_DEFAULT); //this will sleep forever
+}
+
+void checkBattery(boolean shutdownIfDead) {
+	uint16_t voltage = getAdjustedVcc();
+	if ( voltage < BATTERY_DEAD_MV ) {
+		Serial.println("[Hbeat] Battery is dead!!!");
+		state.color = CRGB::Red;
+		state.intEffectState = 0;
+		effect = 2;
+		runLeds();
+	
+		if ( shutdownIfDead ) {
+			sleepForever();
+		}
+	} else if ( voltage < BATTERY_LOW_MV ) {
+		Serial.println("[Hbeat] Battery is low...");
+		if ( effect == 2 ) { //If we are showing a status indication
+			state.color = CRGB::Yellow; //turn it yellow
+		}
+		state.lowPowerMode = true;
+	}
 }
