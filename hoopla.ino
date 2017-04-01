@@ -756,18 +756,6 @@ void loop() {
 
 		//time to do our every-second tasks
 
-		uint16_t voltage = getAdjustedVcc();
-		if ( voltage < BATTERY_DEAD_MV ) {
-			Serial.println("[Hbeat] Battery is dead!!!");
-			state.color = CRGB::Red;
-			effect = 2;
-			runLeds();
-			ESP.deepSleep(1234567890, WAKE_RF_DEFAULT); //this will sleep forever since we don't connect the RTC to the reset pin
-		} else if ( voltage < BATTERY_LOW_MV ) {
-			Serial.println("[Hbeat] Battery is low...");
-			state.lowPowerMode = true;
-		}
-
 		#ifdef DEBUG
 		actualFrameRate = (double)frameCount/((double)(millis()-timer1s)/1000);
 		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(actualFrameRate);
@@ -870,6 +858,18 @@ void loop() {
 	}
 
 	EVERY_N_MILLISECONDS(10000) {
+		uint16_t voltage = getAdjustedVcc();
+		if ( voltage < BATTERY_DEAD_MV ) {
+			Serial.println("[Hbeat] Battery is dead!!!");
+			state.color = CRGB::Red;
+			effect = 2;
+			runLeds();
+			ESP.deepSleep(1234567890, WAKE_RF_DEFAULT); //this will sleep forever since we don't connect the RTC to the reset pin
+		} else if ( voltage < BATTERY_LOW_MV ) {
+			Serial.println("[Hbeat] Battery is low...");
+			state.lowPowerMode = true;
+		}
+
 		if ( attractMode ) {
 			do {
 				effect = (effect+1) % emgrLoadedCount; //wrap around if we're over the loaded count
