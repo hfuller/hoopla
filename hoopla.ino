@@ -388,6 +388,15 @@ void setup() {
 				background: #444;
 				padding: 5px;
 			}
+			#color-buttons {
+				display:table;
+				max-width:144px;
+			}
+			.color-button {
+				width:36px;
+				height:36px;
+				display:inline;
+			}
 		)");
 	});
 	server.on("/", [&](){
