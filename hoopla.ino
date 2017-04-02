@@ -788,18 +788,20 @@ void setup() {
 		runLeds();
 		//WiFiUDP::stopAll();
 		
-		boolean result = phoneHome(true);
-		if ( result ) {
+		boolean result = phoneHome();
+		if ( result && ESPhttpUpdate.getLastError() == 0 ) { //we updated and there wasn't an error
 			state.intEffectState = numpixels-1;
 			state.color = CRGB::Yellow;
 			runLeds();
 		} else {
-			Serial.println("[check] Updater returned that an update wasn't needed");
+			Serial.println("[check] Updater returned that an update wasn't performed");
 			currentEffectId = oldEffect;
 		}
 
-		String resultStr = "false";
-		if ( result ) { resultStr = "true"; }
+		String resultStr = ESPhttpUpdate.getLastErrorString();
+		if ( result == false && resultStr.length() < 1 ) {
+			resultStr = "No updates were necessary.";
+		}
 
                 server.send(200, "text/html", resultStr);
 		server.client().stop();
@@ -1091,40 +1093,34 @@ String spiffsRead(String path) {
 	return x;
 }
 
-boolean phoneHome(boolean doUpdate) {
+boolean phoneHome() {
 
-	Serial.println("[chkup] Phoning home");
+	Serial.println("[chkup] checking for updates");
 
-	if ( doUpdate ) {
-		Serial.println("[chkup] checking for updates");
-
-		//include the current version as the x-ESP8266-version header.
-		uint32_t flashChipSize = ESP.getFlashChipSize();
-		String platform = "generic";
-		if ( flashChipSize == 4194304 ) {
-			platform = "nodemcu"; //HACK HACK HACK
-		}
-		String url = String("http://update.pixilic.com/hoopla.ino.") + platform + ".bin";
-		String versionHeader = String("{\"flashChipSize\":") + String(flashChipSize) + ", \"version\":" + String(VERSION) + ", \"name\":\"" + devHostName + "\"}";
-
-		t_httpUpdate_return ret = ESPhttpUpdate.update(url, versionHeader);
-		switch(ret) {
-			case HTTP_UPDATE_FAILED:
-			case HTTP_UPDATE_NO_UPDATES:
-				Serial.println("[chkup] Update failed, or there is no update.");
-				return false;
-				break;
-			case HTTP_UPDATE_OK:
-				Serial.printf("[chkup] Update Success");
-				EEPROM.begin(256);
-				EEPROM.write(6,1);
-				EEPROM.end(); //notify that we just installed an update OTA.
-				doRestartDevice = true;
-				return true;
-				break;
-		}
+	//include the current version as the x-ESP8266-version header.
+	uint32_t flashChipSize = ESP.getFlashChipSize();
+	String platform = "generic";
+	if ( flashChipSize == 4194304 ) {
+		platform = "nodemcu"; //HACK HACK HACK
 	}
-	return false;
+	String url = String("http://update.pixilic.com/hoopla.ino.") + platform + ".bin";
+	String versionHeader = String("{\"flashChipSize\":") + String(flashChipSize) + ", \"version\":" + String(VERSION) + ", \"name\":\"" + devHostName + "\"}";
+
+	HTTPUpdateResult ret = ESPhttpUpdate.update(url, versionHeader);
+	switch(ret) {
+		case HTTP_UPDATE_OK:
+			Serial.printf("[chkup] Update Success");
+			EEPROM.begin(256);
+			EEPROM.write(6,1);
+			EEPROM.end(); //notify that we just installed an update OTA.
+			doRestartDevice = true;
+			return true;
+			break;
+		default:
+			Serial.println("[chkup] Update failed, or there is no update.");
+			return false;
+			break;
+	}
 }
 
 uint16_t getAdjustedVcc() {
