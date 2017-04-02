@@ -25,7 +25,7 @@ ADC_MODE(ADC_VCC);
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			49
+#define VERSION			50
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -58,6 +58,7 @@ double actualFrameRate;
 EffectManager emgr; //lol
 int emgrLoadedCount = 0;
 int currentEffectId = 2;
+int currentPaletteId = 0;
 boolean attractMode = true;
 EffectState state;
 
@@ -274,6 +275,7 @@ void setup() {
 	currentEffectId = 2; //solid for status indication
 	//Palette
 	state.currentPalette = RainbowColors_p;                        // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	currentPaletteId = 0;
 	state.lowPowerMode = false;
 	
 	Serial.println("[start] Starting bleeding edge effects loader");
@@ -420,10 +422,30 @@ void setup() {
 			<script>
 				function setEffect() {
 					var xhr = new XMLHttpRequest();
-					xhr.addEventListener("load", loadColors); //reload the colors in case the palette just changed
 					xhr.open("PUT","/effects/current", true);
 					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-					xhr.send("id=" + document.getElementById("id").value + "&palette=" + document.getElementById("palette").value);
+					xhr.send("id=" + document.getElementById("id").value);
+				}
+				function setPalette() {
+					var xhr = new XMLHttpRequest();
+					xhr.addEventListener("load", loadColors); //reload the colors in case the palette just changed
+					xhr.open("PUT","/palettes/current", true);
+					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+					xhr.send("id=" + document.getElementById("palette").value);
+				}
+				function setColorToThis(event) {
+					console.log(this.style.backgroundColor);
+					rgb = this.style.backgroundColor.match(/^rgba?[\s+]?\([\s+]?(\d+)[\s+]?,[\s+]?(\d+)[\s+]?,[\s+]?(\d+)[\s+]?/i);
+					let r = rgb[1];
+					let g = rgb[2];
+					let b = rgb[3];
+					
+					var xhr = new XMLHttpRequest();
+					xhr.open("PUT", "/color", true);
+					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+					xhr.send("r=" + r + "&g=" + g + "&b=" + b);
+
+					event.preventDefault();					
 				}
 				function loadColors() {
 					var xhr = new XMLHttpRequest();
@@ -434,19 +456,22 @@ void setup() {
 						} //done removing all elements from the container.
 
 						data = JSON.parse(this.responseText);
-						data.forEach(function(color) {
+						data.colors.forEach(function(color) {
 							let el = document.createElement("button");
 							el.className = "color-button";
 							el.style.backgroundColor = color;
+							el.addEventListener("click", setColorToThis);
 							container.appendChild(el);
 						});
 					});
 					xhr.open("GET", "/palettes/current", true);
 					xhr.send();
 				}
+
 				document.getElementById("id").addEventListener("change", setEffect);
-				document.getElementById("palette").addEventListener("change", setEffect);
+				document.getElementById("palette").addEventListener("change", setPalette);
 				
+				loadColors();
 				
 			</script>
 		)");
@@ -467,6 +492,14 @@ void setup() {
 
 		server.client().stop();
 	});
+	server.on("/color", HTTP_PUT, [&](){
+		state.color.r = server.arg("r").toInt();
+		state.color.g = server.arg("g").toInt();
+		state.color.b = server.arg("b").toInt();
+		
+		server.send(200, "text/plain", "");
+		server.client().stop();
+	});
 	server.on("/effects/current", HTTP_GET, [&](){
 		String json = String() + "{\"id\":" + String(currentEffectId) + ", \"name\":\"" + emgr.getEffect(currentEffectId).name + "\"}";
 		
@@ -485,10 +518,6 @@ void setup() {
 		}
 		Serial.print(currentEffectId); Serial.print(" ");
 
-		int paletteId = server.arg("palette").toInt();
-		state.currentPalette = emgr.getPalette(paletteId).palette;
-		Serial.println(paletteId);
-
 		server.sendHeader("Location", "/?ok", true);
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 		server.sendHeader("Pragma", "no-cache");
@@ -497,7 +526,7 @@ void setup() {
 		server.client().stop(); // Stop is needed because we sent no content length
 	});
 	server.on("/palettes/current", HTTP_GET, [&](){
-		String json = String("[");
+		String json = String("{\"id\":") + String(currentPaletteId) + ", \"name\":\"" + emgr.getPalette(currentPaletteId).name + "\", \"colors\":[";
 		for ( int i=0; i<16; i++ ) {
 			json += "\"#";
 
@@ -520,12 +549,22 @@ void setup() {
 				json += ", ";
 			}
 		}
-		json += "]";
+		json += "]}";
 		
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		//server.setContentLength(CONTENT_LENGTH_UNKNOWN);
                 server.send(200, "text/html", json);
 		server.client().stop();
 	});	
+	server.on("/palettes/current", HTTP_PUT, [&](){
+		int paletteId = server.arg("id").toInt();
+		currentPaletteId = paletteId;
+		state.currentPalette = emgr.getPalette(paletteId).palette;
+		Serial.println(paletteId);
+		
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+                server.send(200, "text/html", "true");
+		server.client().stop();
+	});
 	server.on("/setup", [&](){
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 		server.sendHeader("Pragma", "no-cache");
