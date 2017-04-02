@@ -415,16 +415,39 @@ void setup() {
 		server.sendContent(R"(
 			</select>
 			<!-- <button type="submit">Set</button> -->
+			<div id="color-buttons"></div>
 			</form>
 			<script>
-				let listenerFn = function() {
+				function setEffect() {
 					var xhr = new XMLHttpRequest();
+					xhr.addEventListener("load", loadColors); //reload the colors in case the palette just changed
 					xhr.open("PUT","/effects/current", true);
 					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 					xhr.send("id=" + document.getElementById("id").value + "&palette=" + document.getElementById("palette").value);
-				};
-				document.getElementById("id").addEventListener("change", listenerFn);
-				document.getElementById("palette").addEventListener("change", listenerFn);
+				}
+				function loadColors() {
+					var xhr = new XMLHttpRequest();
+					xhr.addEventListener("load", function() {
+						let container = document.getElementById("color-buttons");
+						while ( container.firstChild ) {
+							container.removeChild(container.firstChild);
+						} //done removing all elements from the container.
+
+						data = JSON.parse(this.responseText);
+						data.forEach(function(color) {
+							let el = document.createElement("button");
+							el.className = "color-button";
+							el.style.backgroundColor = color;
+							container.appendChild(el);
+						});
+					});
+					xhr.open("GET", "/palettes/current", true);
+					xhr.send();
+				}
+				document.getElementById("id").addEventListener("change", setEffect);
+				document.getElementById("palette").addEventListener("change", setEffect);
+				
+				
 			</script>
 		)");
 		server.client().stop(); // Stop is needed because we sent no content length
