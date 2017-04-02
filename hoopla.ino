@@ -25,7 +25,7 @@ ADC_MODE(ADC_VCC);
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			50
+#define VERSION			51
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -406,24 +406,24 @@ void setup() {
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 		server.sendHeader("Pragma", "no-cache");
 		server.sendHeader("Expires", "-1");
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", header);
-		server.sendContent(R"(
+
+		String content = header;
+		content += R"(
 			<h1>Controls</h1>
 			<form method="PUT" action="/effects/current">
 			<select name="id" id="id">
-		)");
+		)";
 		for ( int i=0; i < emgrLoadedCount; i++ ) {
-			server.sendContent(String("<option value=\"") + i + "\">" + emgr.getEffect(i).name + "</option>");
+			content += String("<option value=\"") + i + "\">" + emgr.getEffect(i).name + "</option>";
 		}
-		server.sendContent(R"(
+		content += R"(
 			</select>
 			<select name="palette" id="palette">
-		)");
+		)";
 		for ( int i=0; i < emgr.getPaletteCount(); i++ ) {
-			server.sendContent(String("<option value=\"") + i + "\">" + emgr.getPalette(i).name + "</option>");
+			content += String("<option value=\"") + i + "\">" + emgr.getPalette(i).name + "</option>";
 		}
-		server.sendContent(R"(
+		content += R"(
 			</select>
 			<!-- <button type="submit">Set</button> -->
 			<div id="color-buttons"></div>
@@ -483,23 +483,22 @@ void setup() {
 				loadColors();
 				
 			</script>
-		)");
-		server.client().stop(); // Stop is needed because we sent no content length
+		)";
+		server.send(200, "text/html", content);
 	});
 	server.on("/effects", HTTP_GET, [&](){
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "application/json", "[");
+		String content = "[";
 		
 		for ( int i=0; i < emgrLoadedCount; i++ ) {
 			String json = String() + "{\"id\":" + String(i) + ", \"name\":\"" + emgr.getEffect(i).name + "\"}";
-			server.sendContent(json);
+			content += json;
 			if ( i < emgrLoadedCount-1 ) {
-				server.sendContent(", ");
+				content += ", ";
 			}
 		}
-		server.sendContent("]");
+		content += ("]");
 
-		server.client().stop();
+		server.send(200, "application/json", content);
 	});
 	server.on("/color", HTTP_PUT, [&](){
 		state.color.r = server.arg("r").toInt();
@@ -512,7 +511,6 @@ void setup() {
 	server.on("/effects/current", HTTP_GET, [&](){
 		String json = String() + "{\"id\":" + String(currentEffectId) + ", \"name\":\"" + emgr.getEffect(currentEffectId).name + "\"}";
 		
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", json);
 		server.client().stop();
 	});
@@ -560,7 +558,6 @@ void setup() {
 		}
 		json += "]}";
 		
-		//server.setContentLength(CONTENT_LENGTH_UNKNOWN);
                 server.send(200, "text/html", json);
 		server.client().stop();
 	});	
@@ -570,16 +567,17 @@ void setup() {
 		state.currentPalette = emgr.getPalette(paletteId).palette;
 		Serial.println(paletteId);
 		
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
                 server.send(200, "text/html", "true");
 		server.client().stop();
 	});
 	server.on("/setup", [&](){
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 		server.sendHeader("Pragma", "no-cache");
 		server.sendHeader("Expires", "-1");
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", header); 
+		server.sendHeader("Content-Length", "-1");
+		server.send(200, "text/html", header);
+		
 		server.sendContent("\
 			<h1>Setup</h1>\
 			<h4>Nearby networks</h4>\
@@ -631,7 +629,7 @@ void setup() {
 				<button type="submit">Save</button>
 			</form>
 		)");
-		server.client().stop(); // Stop is needed because we sent no content length
+		server.client().stop();
 	});
 	server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
 	server.on("/setup/leds", HTTP_POST, [&](){
@@ -667,20 +665,19 @@ void setup() {
 		Serial.println("done.");
 	});
 	server.on("/debug", [&](){
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", header);
-		server.sendContent("<h1>Debug</h1>");
+		String content = header;
+		content += ("<h1>Debug</h1>");
 
-		server.sendContent(String("<h2>Version ") + VERSION + "</h2>");
+		content += (String("<h2>Version ") + VERSION + "</h2>");
 
 		unsigned long uptime = millis();
-		server.sendContent(String("<h2>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</h2>");
+		content += (String("<h2>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</h2>");
 
-		server.sendContent(String("<h2>Battery: ") + getAdjustedVcc() + "mV (Raw: " + ESP.getVcc() + ")</h2>");
+		content += (String("<h2>Battery: ") + getAdjustedVcc() + "mV (Raw: " + ESP.getVcc() + ")</h2>");
 
-		server.sendContent(String("<h2>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps");
+		content += (String("<h2>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps");
 
-		server.sendContent(R"(
+		content += (R"(
 			<form method="POST" action="/debug/lowpowermode">
 				<button type="submit">Toggle low power mode now</button>
 			</form>
@@ -694,7 +691,7 @@ void setup() {
 				<button type='submit'>Forget connection info</button>
 			</form>
 		)");
-		server.client().stop();
+		server.send(200, "text/html", content);
 	});
 	server.on("/debug/lowpowermode", [&](){
 		send302("/debug?done");
@@ -731,7 +728,6 @@ void setup() {
 		server.client().stop();
 	});
 	server.on("/version.json", [&](){
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", String(VERSION));
 		server.client().stop();
 	});
@@ -805,7 +801,6 @@ void setup() {
 		String resultStr = "false";
 		if ( result ) { resultStr = "true"; }
 
-                server.setContentLength(CONTENT_LENGTH_UNKNOWN);
                 server.send(200, "text/html", resultStr);
 		server.client().stop();
 
