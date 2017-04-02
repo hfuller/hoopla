@@ -57,7 +57,7 @@ double actualFrameRate;
 //EFFECT SHIT
 EffectManager emgr; //lol
 int emgrLoadedCount = 0;
-int effect = 2;
+int currentEffectId = 2;
 boolean attractMode = true;
 EffectState state;
 
@@ -144,12 +144,12 @@ class StripHandler : public LightHandler {
         //Serial.print("[emhue] H:"); Serial.print(newColor.h); Serial.print("S:"); Serial.print(newColor.s); Serial.print("V:"); Serial.println(newColor.v);
         state.color = newColor;
         //Serial.print("[emhue] R:"); Serial.print(state.color.r); Serial.print("G:"); Serial.print(state.color.g); Serial.print("B:"); Serial.println(state.color.b);
-        effect = 0; //SolidAll
+        currentEffectId = 0; //SolidAll
       }
       else
       {
         state.color = CRGB::Black;
-		effect = 0; //SolidAll
+		currentEffectId = 0; //SolidAll
       }
     }
 
@@ -271,7 +271,7 @@ void setup() {
 	leds[0] = CRGB::Red; FastLED.show();
 
 	Serial.println("[start] Starting effects");
-	effect = 2; //solid for status indication
+	currentEffectId = 2; //solid for status indication
 	//Palette
 	state.currentPalette = RainbowColors_p;                        // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
 	state.lowPowerMode = false;
@@ -318,7 +318,7 @@ void setup() {
 		HTTPUpload& upload = server.upload();
 		if(upload.status == UPLOAD_FILE_START){
 			Serial.printf("Starting HTTP update from %s - other functions will be suspended.\r\n", upload.filename.c_str());
-			effect = 2;
+			currentEffectId = 2;
 			state.color = CRGB::OrangeRed;
 
 			//doRestartServices = true; //why would we do this when we are about to reboot anyway
@@ -445,7 +445,7 @@ void setup() {
 		server.client().stop();
 	});
 	server.on("/effects/current", HTTP_GET, [&](){
-		String json = String() + "{\"id\":" + String(effect) + ", \"name\":\"" + emgr.getEffect(effect).name + "\"}";
+		String json = String() + "{\"id\":" + String(currentEffectId) + ", \"name\":\"" + emgr.getEffect(currentEffectId).name + "\"}";
 		
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.send(200, "text/html", json);
@@ -453,14 +453,14 @@ void setup() {
 	});
 	server.on("/effects/current", HTTP_PUT, [&](){
 		Serial.print("[httpd] effect save. ");
-		effect = server.arg("id").toInt();
-		if ( effect < 0 ) { //HACK to enable attract mode
-			effect = 3; //move past the single LED ones.
+		currentEffectId = server.arg("id").toInt();
+		if ( currentEffectId < 0 ) { //HACK to enable attract mode
+			currentEffectId = 3; //move past the single LED ones.
 			attractMode = true;
 		} else {
 			attractMode = false;
 		}
-		Serial.print(effect); Serial.print(" ");
+		Serial.print(currentEffectId); Serial.print(" ");
 
 		int paletteId = server.arg("palette").toInt();
 		state.currentPalette = emgr.getPalette(paletteId).palette;
@@ -676,12 +676,12 @@ void setup() {
 	// No authentication by default
 	//ArduinoOTA.setPassword((const char *)"123");
 	ArduinoOTA.onStart([]() {
-		effect = 1;
+		currentEffectId = 1;
 		state.color = CRGB::OrangeRed;
 		Serial.println("Starting OTA update. Other functions will be suspended.");
 	});
 	ArduinoOTA.onEnd([]() {
-		effect = 2;
+		currentEffectId = 2;
 		state.color = CRGB::Yellow;
 		runLeds();
 		
@@ -714,9 +714,9 @@ void setup() {
 	Serial.println("[start] Starting HTTP Update Checker");
 	ESPhttpUpdate.rebootOnUpdate(false);
 	server.on("/update/check", [&](){
-		int oldEffect = effect;
+		int oldEffect = currentEffectId;
 		
-		effect = 2;
+		currentEffectId = 2;
 		state.color = CRGB::OrangeRed;
 		runLeds();
 		//WiFiUDP::stopAll();
@@ -728,7 +728,7 @@ void setup() {
 			runLeds();
 		} else {
 			Serial.println("[check] Updater returned that an update wasn't needed");
-			effect = oldEffect;
+			currentEffectId = oldEffect;
 		}
 
 		String resultStr = "false";
@@ -741,7 +741,7 @@ void setup() {
         });
 
 	state.color = CRGB::Green; runLeds();
-	effect = 6;
+	currentEffectId = 6;
 
 	Serial.println("[start] Checking battery");
 	checkBattery(false); //don't actually shut down even if we are dead. We will do that later
@@ -782,9 +782,9 @@ void loop() {
 		frameCount = 0;
 
 		/*
-		if ( effect <= 2 && millis() < 10000 ) {
+		if ( currentEffectId <= 2 && millis() < 10000 ) {
 			//we are stuck in a status display
-			effect = 6;
+			currentEffectId = 6;
 		}
 		*/
 
@@ -875,8 +875,8 @@ void loop() {
 
 		if ( attractMode ) {
 			do {
-				effect = (effect+1) % emgrLoadedCount; //wrap around if we're over the loaded count
-			} while ( ! emgr.getEffect(effect).useForAttractMode ); //Skip any effects that don't want to be seen in attract mode
+				currentEffectId = (currentEffectId+1) % emgrLoadedCount; //wrap around if we're over the loaded count
+			} while ( ! emgr.getEffect(currentEffectId).useForAttractMode ); //Skip any effects that don't want to be seen in attract mode
 		}
 	}
 
@@ -889,7 +889,7 @@ void runLeds() {
 	//WOW this function got way simpler than it used to be. I just want to talk about that.
 
 	frameCount++; //for frame rate measurement
-	emgr.getEffect(effect).run(&state); //Pass our state struct to the effect.
+	emgr.getEffect(currentEffectId).run(&state); //Pass our state struct to the effect.
 	show_at_max_brightness_for_power(); //FastLED.show();
 
 }
@@ -1083,7 +1083,7 @@ void checkBattery(boolean shutdownIfDead) {
 		Serial.println("[Hbeat] Battery is dead!!!");
 		state.color = CRGB::Red;
 		state.intEffectState = 0;
-		effect = 2;
+		currentEffectId = 2;
 		runLeds();
 	
 		if ( shutdownIfDead ) {
@@ -1091,7 +1091,7 @@ void checkBattery(boolean shutdownIfDead) {
 		}
 	} else if ( voltage < BATTERY_LOW_MV ) {
 		Serial.println("[Hbeat] Battery is low...");
-		if ( effect == 2 ) { //If we are showing a status indication
+		if ( currentEffectId == 2 ) { //If we are showing a status indication
 			state.color = CRGB::Yellow; //turn it yellow
 		}
 		state.lowPowerMode = true;
