@@ -207,25 +207,10 @@ EffectManager::EffectManager() {
 	});
 	addEffect("Confetti", true, [](EffectState *state){
 		uint8_t thisfade = 16; //How quickly does it fade? Lower = slower fade rate.
-		int thishue = 50; //Starting hue.
-		uint8_t thisinc = 1; //Incremental value for rotating hues
-		uint8_t thissat = 100; //The saturation, where 255 = brilliant colours.
-		uint8_t thisbri = 255; //Brightness of a sequence. Remember, max_bright is the overall limiter.
-		int huediff = 256; //Range of random #'s to use for hue
 
-		EVERY_N_MILLISECONDS(5000) {
-			//THIS ENTIRE SWITCH STATEMENT IS BROKEN BTW HACK HACK HACK
-			switch(0) {
-				case 7: thisinc=1; thishue=192; thissat=255; thisfade=16; huediff=256; break;  // You can change values here, one at a time , or altogether.
-				case 8: thisinc=2; thishue=128; thisfade=8; huediff=64; break;
-				case 9: thisinc=1; thishue=random16(255); thisfade=4; huediff=16; break;      // Only gets called once, and not continuously for the next several seconds. Therefore, no rainbows.
-			}
-		}
-	
 		fadeToBlackBy(leds, numpixels, thisfade); //Low values = slower fade.
 		int pos = random16(numpixels); //Pick an LED at random.
-		leds[pos] += CHSV((thishue + random16(huediff))/4 , thissat, thisbri); //I use 12 bits for hue so that the hue increment isn't too quick.
-		thishue = thishue + thisinc; //It increments here.
+		leds[pos] += state->color;
 	});
 	addEffect("Juggle", true, [](EffectState *state){
 		uint8_t numdots = 4; //Number of dots in use.
@@ -233,24 +218,13 @@ EffectManager::EffectManager() {
 		if ( state->lowPowerMode ) {
 			faderate = 40;
 		}
-		uint8_t hueinc = 16; //Incremental change in hue between each dot.
-		uint8_t curhue = 0; //The current hue
 		uint8_t basebeat = 5; //Higher = faster movement.
-		uint8_t thishue = 50; //starting hue
-		uint8_t thissat = 100;
-		uint8_t thisbri = 255;
 		
-		//THIS ENTIRE SWITCH STATEMENT IS TOTALLY BROKEN HACK HACK HACK
-		switch(0) {
-			case 11: numdots = 1; basebeat = 20; hueinc = 16; faderate = 2; thishue = 0; break;
-			case 12: numdots = 4; basebeat = 10; hueinc = 16; faderate = 8; thishue = 128; break;
-			case 13: numdots = 8; basebeat =  3; hueinc =  0; faderate = 8; thishue=random8(); break; // Only gets called once, and not continuously for the next several seconds. Therefore, no rainbows.
-		}
-		curhue = thishue; //Reset the hue values.
 		fadeToBlackBy(leds, numpixels, faderate);
 		for( int i = 0; i < numdots; i++) {
-			leds[beatsin16(basebeat+i+numdots,0,numpixels)] += CHSV(curhue, thissat, thisbri); //beat16 is a FastLED 3.1 function
-			curhue += hueinc;
+			uint8_t paletteIndex = (i*4)%16;
+			//leds[beatsin16(basebeat+i+numdots,0,numpixels)] += state->color; //beat16 is a FastLED 3.1 function
+			leds[beatsin16(basebeat+i+numdots,0,numpixels)] += state->currentPalette[paletteIndex];
 		}
 	
 	});
