@@ -83,6 +83,63 @@ EffectManager::EffectManager() {
 		fill_solid(leds, numpixels, CRGB::Black);
 		leds[state->intEffectState] = state->color;
 	});
+	addEffect("Lightning", false, [](EffectState *state){
+		fill_solid(leds, numpixels, CRGB::Black);
+
+		uint8_t frequency = 50; //controls the interval between strikes
+		uint8_t flashes = 8; //the upper limit of flashes per strike
+		unsigned int dimmer = 1;
+
+		int flashCounter = state->intEffectState; //how many flashes have we done already, during this cycle?
+		unsigned long lastFlashTime = state->ulongEffectState; //when did we last flash?
+		unsigned long nextFlashDelay = state->ulongEffectState2; //how long do we wait since the last flash before flashing again?
+		int ledstart = state->intEffectState2; // Starting location of a flash
+		int ledlen = state->intEffectState3; // Length of a flash
+
+		//Serial.print("[ltnng] entered. millis()="); Serial.print(millis()); Serial.print(" lastFlashTime="); Serial.print(lastFlashTime); Serial.print(" nextFlashDelay="); Serial.println(nextFlashDelay);
+		if ( (millis() - lastFlashTime) > nextFlashDelay ) { //time to flash
+			//Serial.print("[ltnng] flashCounter: ");
+			//Serial.println(flashCounter);
+			nextFlashDelay = 0;
+			if ( flashCounter == 0 ) {
+				//Serial.println("[ltnng] New strike");
+				//new strike. init our values for this set of flashes
+				ledstart = random16(numpixels);           // Determine starting location of flash
+				ledlen = random16(numpixels-ledstart);    // Determine length of flash (not to go beyond numpixels-1)
+				if ( state->lowPowerMode && ledlen > 20 ) {
+					ledlen = 20;
+				}
+				dimmer = 5;
+				nextFlashDelay += 150;   // longer delay until next flash after the leader
+			} else {
+				dimmer = random8(1,3);           // return strokes are brighter than the leader
+			}
+	
+			if ( flashCounter < random8(3,flashes) ) {
+				//Serial.println("[ltnng] Time to flash");
+				flashCounter++;
+				fill_solid(leds+ledstart,ledlen,CHSV(255, 0, 255/dimmer));
+				show_at_max_brightness_for_power();                       // Show a section of LED's
+				delay(random8(4,10));                 // each flash only lasts 4-10 milliseconds. We will use delay() because the timing has to be tight. still will run shorter than 10ms.
+				fill_solid(leds+ledstart,ledlen,CHSV(255,0,0));   // Clear the section of LED's
+				show_at_max_brightness_for_power();     
+				nextFlashDelay += 50+random8(100);               // shorter delay between strokes  
+			} else {
+				//Serial.println("[ltnng] Strike complete");
+				flashCounter = 0;
+				nextFlashDelay = random8(frequency)*100;          // delay between strikes
+			}
+			lastFlashTime = millis();
+		} 
+
+		//Save shit until next time (I AM THE WORST)
+		state->intEffectState = flashCounter;
+		state->ulongEffectState = lastFlashTime;
+		state->ulongEffectState2 = nextFlashDelay;
+		state->intEffectState2 = ledstart;
+		state->intEffectState3 = ledlen;
+	
+	});
 	addEffect("Dot Beat", true, [](EffectState *state){
 		uint8_t fadeval = 224; //Trail behind the LED's. Lower => faster fade.
 		uint8_t bpm = 30;
@@ -188,74 +245,17 @@ EffectManager::EffectManager() {
 		}
 	
 	});
-	addEffect("Lightning", false, [](EffectState *state){
-		fill_solid(leds, numpixels, CRGB::Black);
-
-		uint8_t frequency = 50; //controls the interval between strikes
-		uint8_t flashes = 8; //the upper limit of flashes per strike
-		unsigned int dimmer = 1;
-
-		int flashCounter = state->intEffectState; //how many flashes have we done already, during this cycle?
-		unsigned long lastFlashTime = state->ulongEffectState; //when did we last flash?
-		unsigned long nextFlashDelay = state->ulongEffectState2; //how long do we wait since the last flash before flashing again?
-		int ledstart = state->intEffectState2; // Starting location of a flash
-		int ledlen = state->intEffectState3; // Length of a flash
-
-		//Serial.print("[ltnng] entered. millis()="); Serial.print(millis()); Serial.print(" lastFlashTime="); Serial.print(lastFlashTime); Serial.print(" nextFlashDelay="); Serial.println(nextFlashDelay);
-		if ( (millis() - lastFlashTime) > nextFlashDelay ) { //time to flash
-			//Serial.print("[ltnng] flashCounter: ");
-			//Serial.println(flashCounter);
-			nextFlashDelay = 0;
-			if ( flashCounter == 0 ) {
-				//Serial.println("[ltnng] New strike");
-				//new strike. init our values for this set of flashes
-				ledstart = random16(numpixels);           // Determine starting location of flash
-				ledlen = random16(numpixels-ledstart);    // Determine length of flash (not to go beyond numpixels-1)
-				if ( state->lowPowerMode && ledlen > 20 ) {
-					ledlen = 20;
-				}
-				dimmer = 5;
-				nextFlashDelay += 150;   // longer delay until next flash after the leader
-			} else {
-				dimmer = random8(1,3);           // return strokes are brighter than the leader
-			}
-	
-			if ( flashCounter < random8(3,flashes) ) {
-				//Serial.println("[ltnng] Time to flash");
-				flashCounter++;
-				fill_solid(leds+ledstart,ledlen,CHSV(255, 0, 255/dimmer));
-				show_at_max_brightness_for_power();                       // Show a section of LED's
-				delay(random8(4,10));                 // each flash only lasts 4-10 milliseconds. We will use delay() because the timing has to be tight. still will run shorter than 10ms.
-				fill_solid(leds+ledstart,ledlen,CHSV(255,0,0));   // Clear the section of LED's
-				show_at_max_brightness_for_power();     
-				nextFlashDelay += 50+random8(100);               // shorter delay between strokes  
-			} else {
-				//Serial.println("[ltnng] Strike complete");
-				flashCounter = 0;
-				nextFlashDelay = random8(frequency)*100;          // delay between strikes
-			}
-			lastFlashTime = millis();
-		} 
-
-		//Save shit until next time (I AM THE WORST)
-		state->intEffectState = flashCounter;
-		state->ulongEffectState = lastFlashTime;
-		state->ulongEffectState2 = nextFlashDelay;
-		state->intEffectState2 = ledstart;
-		state->intEffectState3 = ledlen;
-	
-	});
-	addEffect("Fill from palette", false, [](EffectState *state){
+	addEffect("Palette spectrum", false, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 0, state->currentPalette, 255, LINEARBLEND);
 		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
-	addEffect("Rotate palette", false, [](EffectState *state){
+	addEffect("Glitter + palette spectrum", true, [](EffectState *state) {
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
 		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
-	addEffect("Noise16", true, [](EffectState *state) {
+	addEffect("% Noise16", true, [](EffectState *state) {
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		//          led array  led count  octaves  x  scale  hue_octaves  hue_x  hue_scale  time
 		//fill_noise8(leds,      numpixels, 1,       0, 1,     1,           beatA, 20,        millis());
@@ -263,14 +263,6 @@ EffectManager::EffectManager() {
 		//                                            ^ does nothing???          ^ bigger = smaller bands
 		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
-	addEffect("Glitter palette", true, [](EffectState *state) {
-		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
-		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
-		if ( random8() < 200 ) {
-			leds[random16(numpixels)] += CRGB::White;
-		}
-		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
-	});	
 
 	Serial.println("[e.cpp] Loading palettes");
 	addPalette("Rainbow gradient", RainbowColors_p);
