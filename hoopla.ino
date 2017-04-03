@@ -430,13 +430,13 @@ void setup() {
 			</form>
 			<script>
 				function setEffect() {
-					var xhr = new XMLHttpRequest();
+					let xhr = new XMLHttpRequest();
 					xhr.open("PUT","/effects/current", true);
 					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 					xhr.send("id=" + document.getElementById("id").value);
 				}
 				function setPalette() {
-					var xhr = new XMLHttpRequest();
+					let xhr = new XMLHttpRequest();
 					xhr.addEventListener("load", loadColors); //reload the colors in case the palette just changed
 					xhr.open("PUT","/palettes/current", true);
 					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -449,7 +449,7 @@ void setup() {
 					let g = rgb[2];
 					let b = rgb[3];
 					
-					var xhr = new XMLHttpRequest();
+					let xhr = new XMLHttpRequest();
 					xhr.open("PUT", "/color", true);
 					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 					xhr.send("r=" + r + "&g=" + g + "&b=" + b);
@@ -457,7 +457,7 @@ void setup() {
 					event.preventDefault();					
 				}
 				function loadColors() {
-					var xhr = new XMLHttpRequest();
+					let xhr = new XMLHttpRequest();
 					xhr.addEventListener("load", function() {
 						let container = document.getElementById("color-buttons");
 						while ( container.firstChild ) {
@@ -480,7 +480,24 @@ void setup() {
 				document.getElementById("id").addEventListener("change", setEffect);
 				document.getElementById("palette").addEventListener("change", setPalette);
 				
-				loadColors();
+				let xhrE = new XMLHttpRequest();
+				xhrE.addEventListener("load", function() {
+					data = JSON.parse(this.responseText);
+					console.log(data);
+					document.getElementById("id").value = data.id;
+				});
+				xhrE.open("GET", "/effects/current", true);
+				xhrE.send();
+
+				let xhrP = new XMLHttpRequest();
+				xhrP.addEventListener("load", function() {
+					data = JSON.parse(this.responseText);
+					console.log(data);
+					document.getElementById("palette").value = data.id;
+					loadColors();
+				});
+				xhrP.open("GET", "/palettes/current", true);
+				xhrP.send();
 				
 			</script>
 		)";
