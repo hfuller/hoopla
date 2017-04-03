@@ -196,6 +196,8 @@ void setup() {
 		spiffsWrite("/psk", "");
 	}
 	spiffsRead("/psk").toCharArray(passwordAP, 32);
+	Serial.println("[start] Overriding saved PSK to wide-open"); //HACK HACK HACK
+	String().toCharArray(passwordAP, 32);
 	Serial.print("[start] Hello from "); Serial.println(devHostName);		
 
 	Serial.println("[start] Loading configuration from eeprom");
