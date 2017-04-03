@@ -832,7 +832,6 @@ void setup() {
 		int oldEffect = currentEffectId;
 		
 		currentEffectId = 2;
-		state.color = CRGB::OrangeRed;
 		runLeds();
 		//WiFiUDP::stopAll();
 		
