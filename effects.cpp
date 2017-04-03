@@ -248,12 +248,15 @@ EffectManager::EffectManager() {
 	});
 	addEffect("Palette spectrum", false, [](EffectState *state){
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
-		fill_palette(leds, numpixels, beatA, 0, state->currentPalette, 255, LINEARBLEND);
+		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
 		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
 	addEffect("Glitter + palette spectrum", true, [](EffectState *state) {
 		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
 		fill_palette(leds, numpixels, beatA, 6, state->currentPalette, 255, LINEARBLEND);
+		if ( random8() < 200 ) {
+			leds[random16(numpixels)] += CRGB::White;
+		}
 		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
 	addEffect("% Noise16", true, [](EffectState *state) {
