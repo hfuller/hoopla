@@ -92,7 +92,7 @@ const char * header = R"(<!DOCTYPE html>
 	<span id="title">hoopla</span>
 	<a href="/">Controls</a>
 	<a href="/setup">Setup</a>
-	<a href="/debug">Debug</a>
+	<a href="/debug">About</a>
 </div>
 )";
 
@@ -666,18 +666,49 @@ void setup() {
 	});
 	server.on("/debug", [&](){
 		String content = header;
-		content += ("<h1>Debug</h1>");
-
-		content += (String("<h2>Version ") + VERSION + "</h2>");
+		content += ("<h1>About</h1><ul>");
 
 		unsigned long uptime = millis();
-		content += (String("<h2>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</h2>");
-
-		content += (String("<h2>Battery: ") + getAdjustedVcc() + "mV (Raw: " + ESP.getVcc() + ")</h2>");
-
-		content += (String("<h2>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps");
+		content += (String("<li>Version ") + VERSION + "</li>");
+		content += (String("<li>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</li>");
+		content += (String("<li>Battery: ") + getAdjustedVcc() + "mV (Raw: " + ESP.getVcc() + ")</li>");
+		content += (String("<li>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps</li>");
+		content += ("</ul>");
 
 		content += (R"(
+			<h2>Update from the Internet</h2>
+			<p>Only click this button if the device is plugged in, or has a full battery.</p>
+			<button id="check-for-updates">Check for updates now</button>
+			
+			<script>
+				document.getElementById("check-for-updates").addEventListener("click", function() {
+					let xhr = new XMLHttpRequest();
+					xhr.addEventListener("error", function(evt) {
+						//This transfer will basically ALWAYS return an error when an update is being applied,
+						//because the ESP just closes the connection when the update starts!
+						console.log(evt);
+						alert("Updates are being applied. Do not touch the device until the effects start running again! This could take up to one minute.");
+					});
+					xhr.addEventListener("load", function() {
+						let response = this.responseText;
+						if ( response.includes("Wrong HTTP code") ) {
+							response = "No updates were necessary."; //HACK HACK HACK
+						}
+
+						if ( response.length == 0 ) {
+							alert("Updates are being applied. Do not touch the device until the effects start running again! This could take up to one minute.");
+						} else {
+							alert("Updates were not applied, for this reason: " + response);
+						}	
+					});
+					xhr.open("POST", "/update/check", true);
+					xhr.send();
+				});
+			</script>
+		)");
+		
+		content += (R"(
+			<h2>Debugging buttons (don't touch)</h2>
 			<form method="POST" action="/debug/lowpowermode">
 				<button type="submit">Toggle low power mode now</button>
 			</form>
