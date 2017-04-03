@@ -83,7 +83,7 @@ EffectManager::EffectManager() {
 		fill_solid(leds, numpixels, CRGB::Black);
 		leds[state->intEffectState] = state->color;
 	});
-	addEffect("Lightning", false, [](EffectState *state){
+	addEffect("% Lightning", false, [](EffectState *state){
 		fill_solid(leds, numpixels, CRGB::Black);
 
 		uint8_t frequency = 50; //controls the interval between strikes
@@ -139,6 +139,14 @@ EffectManager::EffectManager() {
 		state->intEffectState2 = ledstart;
 		state->intEffectState3 = ledlen;
 	
+	});
+	addEffect("% Noise16", true, [](EffectState *state) {
+		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
+		//          led array  led count  octaves  x  scale  hue_octaves  hue_x  hue_scale  time
+		//fill_noise8(leds,      numpixels, 1,       0, 1,     1,           beatA, 20,        millis());
+		fill_noise16(leds,      numpixels, 10,     99,1,     2,           0,     5,         millis()/2);
+		//                                            ^ does nothing???          ^ bigger = smaller bands
+		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
 	addEffect("Dot Beat", true, [](EffectState *state){
 		uint8_t fadeval = 224; //Trail behind the LED's. Lower => faster fade.
@@ -257,14 +265,6 @@ EffectManager::EffectManager() {
 		if ( random8() < 200 ) {
 			leds[random16(numpixels)] += CRGB::White;
 		}
-		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
-	});
-	addEffect("% Noise16", true, [](EffectState *state) {
-		uint8_t beatA = beat8(30); //, 0, 255); //was beatsin8
-		//          led array  led count  octaves  x  scale  hue_octaves  hue_x  hue_scale  time
-		//fill_noise8(leds,      numpixels, 1,       0, 1,     1,           beatA, 20,        millis());
-		fill_noise16(leds,      numpixels, 10,     99,1,     2,           0,     5,         millis()/2);
-		//                                            ^ does nothing???          ^ bigger = smaller bands
 		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
 

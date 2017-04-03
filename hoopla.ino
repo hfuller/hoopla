@@ -25,7 +25,7 @@ ADC_MODE(ADC_VCC);
 #include "LightService.h"
 #include <aJSON.h>
 
-#define VERSION			51
+#define VERSION			53
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
