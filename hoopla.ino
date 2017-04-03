@@ -93,6 +93,7 @@ const char * header = R"(<!DOCTYPE html>
 	<a href="/">Controls</a>
 	<a href="/setup">Setup</a>
 	<a href="/debug">About</a>
+	<a href="/update">Update</a>
 </div>
 )";
 
@@ -299,15 +300,53 @@ void setup() {
 	Serial.println("[start] starting http");
 	//the following handler is a hack. sorry
 	server.on("/update", HTTP_GET, [&](){
-		server.sendHeader("Connection", "close");
-		server.sendHeader("Access-Control-Allow-Origin", "*");
-		server.send(200, "text/html", R"(
-<html><body><form method='POST' action='/update' enctype='multipart/form-data'>
-<input type='file' name='update'>
-<input type='submit' value='Update'>
-</form>
-</body></html>
+		String content = header;
+		content += ("<h1>Update</h1>");
+
+		content += (R"(
+			<h2>Update from the Internet</h2>
+			<p>Updates will immediately download from the Internet, if there are updates available.</p>
+			<p>Only click this button if the device is plugged in, or has a full battery.</p>
+			<button id="check-for-updates">Check for updates now</button>
+			
+			<script>
+				document.getElementById("check-for-updates").addEventListener("click", function() {
+					let xhr = new XMLHttpRequest();
+					xhr.addEventListener("error", function(evt) {
+						//This transfer will basically ALWAYS return an error when an update is being applied,
+						//because the ESP just closes the connection when the update starts!
+						console.log(evt);
+						alert("Updates are being applied. Do not touch the device until the effects start running again! This could take up to one minute.");
+					});
+					xhr.addEventListener("load", function() {
+						let response = this.responseText;
+						if ( response.includes("Wrong HTTP code") ) {
+							response = "No updates were necessary."; //HACK HACK HACK
+						}
+
+						if ( response.length == 0 ) {
+							alert("Updates are being applied. Do not touch the device until the effects start running again! This could take up to one minute.");
+						} else {
+							alert("Updates were not applied, for this reason: " + response);
+						}	
+					});
+					xhr.open("POST", "/update/check", true);
+					xhr.send();
+				});
+			</script>
 		)");
+		
+		content += R"(
+			<h2>Update from a file</h2>
+			<p>If you have a software file for this device on your computer, upload it here.</p>
+			<p>Feedback will be displayed on the LEDs regarding the progress of the update.</p>
+			<form method='POST' action='/update' enctype='multipart/form-data'>
+				<input type='file' name='update'>
+				<input type='submit' value='Do it'>
+			</form>
+		)";
+
+		server.send(200, "text/html", content);
 	});
 	// handler for the /update form POST (once file upload finishes)
 	server.on("/update", HTTP_POST, [&](){
@@ -691,39 +730,7 @@ void setup() {
 		content += (String("<li>Battery: ") + getAdjustedVcc() + "mV (Raw: " + ESP.getVcc() + ")</li>");
 		content += (String("<li>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps</li>");
 		content += ("</ul>");
-
-		content += (R"(
-			<h2>Update from the Internet</h2>
-			<p>Only click this button if the device is plugged in, or has a full battery.</p>
-			<button id="check-for-updates">Check for updates now</button>
-			
-			<script>
-				document.getElementById("check-for-updates").addEventListener("click", function() {
-					let xhr = new XMLHttpRequest();
-					xhr.addEventListener("error", function(evt) {
-						//This transfer will basically ALWAYS return an error when an update is being applied,
-						//because the ESP just closes the connection when the update starts!
-						console.log(evt);
-						alert("Updates are being applied. Do not touch the device until the effects start running again! This could take up to one minute.");
-					});
-					xhr.addEventListener("load", function() {
-						let response = this.responseText;
-						if ( response.includes("Wrong HTTP code") ) {
-							response = "No updates were necessary."; //HACK HACK HACK
-						}
-
-						if ( response.length == 0 ) {
-							alert("Updates are being applied. Do not touch the device until the effects start running again! This could take up to one minute.");
-						} else {
-							alert("Updates were not applied, for this reason: " + response);
-						}	
-					});
-					xhr.open("POST", "/update/check", true);
-					xhr.send();
-				});
-			</script>
-		)");
-		
+	
 		content += (R"(
 			<h2>Debugging buttons (don't touch)</h2>
 			<form method="POST" action="/debug/lowpowermode">
