@@ -60,6 +60,7 @@ int emgrLoadedCount = 0;
 int currentEffectId = 2;
 int currentPaletteId = 0;
 boolean attractMode = true;
+boolean rotateColorFromPalette = true;
 EffectState state;
 
 bool isAP = false;
@@ -466,6 +467,7 @@ void setup() {
 			</select>
 			<!-- <button type="submit">Set</button> -->
 			<div id="color-buttons"></div>
+			<button id="color-rotate">Rotate automatically through palette colors</button>
 			</form>
 			<script>
 				function setEffect() {
@@ -495,6 +497,13 @@ void setup() {
 
 					event.preventDefault();					
 				}
+				function setColorToRotate(event) {
+					let xhr = new XMLHttpRequest();
+					xhr.open("PUT", "/color", true);
+                                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                                        xhr.send("rotate=true");
+					event.preventDefault();
+				}
 				function loadColors() {
 					let xhr = new XMLHttpRequest();
 					xhr.addEventListener("load", function() {
@@ -518,6 +527,7 @@ void setup() {
 
 				document.getElementById("id").addEventListener("change", setEffect);
 				document.getElementById("palette").addEventListener("change", setPalette);
+				document.getElementById("color-rotate").addEventListener("click", setColorToRotate);
 				
 				let xhrE = new XMLHttpRequest();
 				xhrE.addEventListener("load", function() {
@@ -560,6 +570,7 @@ void setup() {
 		state.color.r = server.arg("r").toInt();
 		state.color.g = server.arg("g").toInt();
 		state.color.b = server.arg("b").toInt();
+		rotateColorFromPalette = ( ( server.arg("rotate").length() > 0 ) ? true : false );
 		
 		server.send(200, "text/plain", "");
 		server.client().stop();
@@ -1000,6 +1011,11 @@ void loop() {
 				currentEffectId = (currentEffectId+1) % emgrLoadedCount; //wrap around if we're over the loaded count
 			} while ( ! emgr.getEffect(currentEffectId).useForAttractMode ); //Skip any effects that don't want to be seen in attract mode
 		}
+	}
+
+	if ( rotateColorFromPalette ) {
+		uint8_t beatA = beat8(30);
+		state.color = ColorFromPalette(state.currentPalette, beatA);
 	}
 
 	runLeds();
