@@ -380,7 +380,7 @@ void setup() {
 			a {
 				color: #5050f0;
 			}
-			form * {
+			form *, button {
 				display:block;
 				border: 1px solid #000;
 				font-size: 14px;
