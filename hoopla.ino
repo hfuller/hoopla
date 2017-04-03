@@ -418,7 +418,8 @@ void setup() {
 				color: #e02020;
 			}
 			a {
-				color: #5050f0;
+				color: #f05050;
+				margin-left:12px;
 			}
 			form *, button {
 				display:block;
@@ -427,6 +428,7 @@ void setup() {
 				color: #fff;
 				background: #444;
 				padding: 5px;
+				margin-bottom:12px;
 			}
 			#color-buttons {
 				display:table;
@@ -436,6 +438,7 @@ void setup() {
 				width:36px;
 				height:36px;
 				display:inline;
+				margin:0px !important;
 			}
 		)");
 	});
