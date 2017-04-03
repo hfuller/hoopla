@@ -149,7 +149,8 @@ EffectManager::EffectManager() {
 		uint8_t middle = beatsin8(bpm, numpixels/3, numpixels/3*2);
 	
 		//leds[middle] = CRGB::Purple; leds[inner] = CRGB::Blue; leds[outer] = CRGB::Aqua;
-		leds[middle] = CRGB::Aqua; leds[inner] = CRGB::Blue; leds[outer] = CRGB::Purple;
+		//leds[middle] = CRGB::Aqua; leds[inner] = CRGB::Blue; leds[outer] = CRGB::Purple;
+		leds[middle] = state->currentPalette[0]; leds[inner] = state->currentPalette[6]; leds[outer] = state->currentPalette[10];
 	
 		nscale8(leds,numpixels,fadeval); // Fade the entire array. Or for just a few LED's, use  nscale8(&leds[2], 5, fadeval);
 	
