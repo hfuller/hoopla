@@ -27,7 +27,7 @@ ADC_MODE(ADC_VCC);
 #include <aJSON.h>
 #endif
 
-#define VERSION			53
+#define VERSION			54
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
