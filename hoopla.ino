@@ -648,7 +648,7 @@ void setup() {
 		}
 		json += "]}";
 		
-                server.send(200, "text/html", json);
+		server.send(200, "text/html", json);
 		server.client().stop();
 	});	
 	server.on("/palettes/current", HTTP_PUT, [&](){
@@ -657,7 +657,7 @@ void setup() {
 		state.currentPalette = emgr.getPalette(paletteId).palette;
 		Serial.println(paletteId);
 		
-                server.send(200, "text/html", "true");
+		server.send(200, "text/html", "true");
 		server.client().stop();
 	});
 	server.on("/setup", [&](){
@@ -850,9 +850,9 @@ void setup() {
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
 		if ( leds[0] == CRGB(0,0,0) ) {
 			state.color = CRGB::OrangeRed; 
-	    } else {
-	        state.color = CRGB::Black;
-	    }
+		} else {
+			state.color = CRGB::Black;
+		}
 		runLeds();
 
 		Serial.printf("OTA progress: %u%%\r", (progress / (total / 100)));
@@ -891,18 +891,18 @@ void setup() {
 			resultStr = "No updates were necessary.";
 		}
 
-                server.send(200, "text/html", resultStr);
+				server.send(200, "text/html", resultStr);
 		server.client().stop();
 
-        });
+		});
 
 	state.color = CRGB::Green; runLeds();
 	currentEffectId = 6;
 
-    #ifdef FEATURE_BATTERY
-    Serial.println("[start] Checking battery");
+	#ifdef FEATURE_BATTERY
+	Serial.println("[start] Checking battery");
 	checkBattery(false); //don't actually shut down even if we are dead. We will do that later
-    #endif
+	#endif
 
 	delay(1000);
 
@@ -921,8 +921,8 @@ void loop() {
 		ArduinoOTA.handle();
 		dnsServer.processNextRequest();
 		#ifdef FEATURE_HUE
-        LightService.update();
-        #endif
+		LightService.update();
+		#endif
 	}
 	
 	EVERY_N_MILLISECONDS(1000) {
@@ -1009,11 +1009,11 @@ void loop() {
 				ArduinoOTA.begin();
 
 				#ifdef FEATURE_HUE
-                Serial.println("[Wi-Fi] Setting up Philips Hue emulation");
+				Serial.println("[Wi-Fi] Setting up Philips Hue emulation");
 				LightService.begin(&server);
 				LightService.setLightsAvailable(1);
 				LightService.setLightHandler(0, new StripHandler());
-                #endif
+				#endif
 
 				doRestartServices = false;
 			}
@@ -1034,8 +1034,8 @@ void loop() {
 
 	EVERY_N_MILLISECONDS(10000) {
 		#ifdef FEATURE_BATTERY
-        checkBattery(true); //shutdown if we are dead
-        #endif 
+		checkBattery(true); //shutdown if we are dead
+		#endif 
 
 		if ( attractMode ) {
 			do {
@@ -1069,11 +1069,11 @@ void runLeds() {
 /** Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
 boolean captivePortal() {
   if (!isIp(server.hostHeader()) && server.hostHeader() != (String(devHostName)+".local")) {
-    Serial.println("[httpd] Request redirected to captive portal");
-    server.sendHeader("Location", String("http://") + toStringIp(server.client().localIP()), true);
-    server.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
-    server.client().stop(); // Stop is needed because we sent no content length
-    return true;
+	Serial.println("[httpd] Request redirected to captive portal");
+	server.sendHeader("Location", String("http://") + toStringIp(server.client().localIP()), true);
+	server.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
+	server.client().stop(); // Stop is needed because we sent no content length
+	return true;
   }
   return false;
 }
@@ -1147,39 +1147,39 @@ CHSV getCHSV(int hue, int sat, int bri) {
   return CHSV(H*255, S*255, B*255);
 }
 CHSV getCHSV(const CRGB& color) { //from neopixelbus
-    // convert colors to float between (0.0 - 1.0)
-    float r = color.r / 255.0f;
-    float g = color.g / 255.0f;
-    float b = color.b / 255.0f;
+	// convert colors to float between (0.0 - 1.0)
+	float r = color.r / 255.0f;
+	float g = color.g / 255.0f;
+	float b = color.b / 255.0f;
 
-    float max = (r > g && r > b) ? r : (g > b) ? g : b;
-    float min = (r < g && r < b) ? r : (g < b) ? g : b;
+	float max = (r > g && r > b) ? r : (g > b) ? g : b;
+	float min = (r < g && r < b) ? r : (g < b) ? g : b;
 
-    float d = max - min;
+	float d = max - min;
 
-    float h = 0.0; 
-    float v = max;
-    float s = (v == 0.0f) ? 0 : (d / v);
+	float h = 0.0; 
+	float v = max;
+	float s = (v == 0.0f) ? 0 : (d / v);
 
-    if (d != 0.0f)
-    {
-        if (r == max)
-        {
-            h = (g - b) / d + (g < b ? 6.0f : 0.0f);
-        }
-        else if (g == max)
-        {
-            h = (b - r) / d + 2.0f;
-        }
-        else
-        {
-            h = (r - g) / d + 4.0f;
-        }
-        h /= 6.0f;
-    }
+	if (d != 0.0f)
+	{
+		if (r == max)
+		{
+			h = (g - b) / d + (g < b ? 6.0f : 0.0f);
+		}
+		else if (g == max)
+		{
+			h = (b - r) / d + 2.0f;
+		}
+		else
+		{
+			h = (r - g) / d + 4.0f;
+		}
+		h /= 6.0f;
+	}
 
-    return CHSV(h,s,v);
-    return CHSV(h,s,v);
+	return CHSV(h,s,v);
+	return CHSV(h,s,v);
 }
 
 void spiffsWrite(String path, String contents) {
