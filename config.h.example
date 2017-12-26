@@ -7,7 +7,7 @@
 
 //If you want to define a custom hardware type, change the LED_CONFIG macro.
 
-//If you have a NodeMCU or Wemos D1 Mini board, use the raw pin numbers.
+//If you have a NodeMCU or Wemos board, use the raw pin numbers.
 //Don't use the pin numbers that are written on the board.
 //For example, instead of D1, write 5.
 //Here's the mapping: http://rldn.net/3go
@@ -18,5 +18,4 @@
 //Example for NeoPixels (the number is the data pin):
 //#define LED_CONFIG NEOPIXEL, 4
 
-#define LED_CONFIG NEOPIXEL, 4
-
+#define LED_CONFIG WS2811, 5, RGB
