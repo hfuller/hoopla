@@ -759,7 +759,7 @@ void setup() {
 		content += ("<h1>About</h1><ul>");
 
 		unsigned long uptime = millis();
-		content += (String("<li>Version ") + VERSION + "</li>");
+		content += (String("<li>Version ") + VERSION + " built on " + __DATE__ + " at " + __TIME__ + "</li>");
 		content += (String("<li>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</li>");
 		content += (String("<li>Battery: ") + getAdjustedVcc() + "mV (Raw: " + ESP.getVcc() + ")</li>");
 		content += (String("<li>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps</li>");
