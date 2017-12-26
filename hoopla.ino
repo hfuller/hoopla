@@ -20,10 +20,12 @@ ADC_MODE(ADC_VCC);
 //Effects loading
 #include "effects.h"
 
+#ifdef FEATURE_HUE
 //Hue emulation
 #include "SSDP.h"
 #include "LightService.h"
 #include <aJSON.h>
+#endif
 
 #define VERSION			53
 
@@ -98,6 +100,7 @@ const char * header = R"(<!DOCTYPE html>
 </div>
 )";
 
+#ifdef FEATURE_HUE
 //Hue emulation handler
 class StripHandler : public LightHandler {
   private:
@@ -161,7 +164,7 @@ class StripHandler : public LightHandler {
       return _info;
     }
 };
-
+#endif
 
 
 void setup() {
@@ -881,8 +884,10 @@ void setup() {
 	state.color = CRGB::Green; runLeds();
 	currentEffectId = 6;
 
-	Serial.println("[start] Checking battery");
+    #ifdef FEATURE_BATTERY
+    Serial.println("[start] Checking battery");
 	checkBattery(false); //don't actually shut down even if we are dead. We will do that later
+    #endif
 
 	delay(1000);
 
@@ -900,7 +905,9 @@ void loop() {
 		//work without the setup functions being run first.
 		ArduinoOTA.handle();
 		dnsServer.processNextRequest();
-		LightService.update();
+		#ifdef FEATURE_HUE
+        LightService.update();
+        #endif
 	}
 	
 	EVERY_N_MILLISECONDS(1000) {
@@ -986,10 +993,12 @@ void loop() {
 				Serial.println("[Wi-Fi] Setting up OTA");
 				ArduinoOTA.begin();
 
-				Serial.println("[Wi-Fi] Setting up Philips Hue emulation");
+				#ifdef FEATURE_HUE
+                Serial.println("[Wi-Fi] Setting up Philips Hue emulation");
 				LightService.begin(&server);
 				LightService.setLightsAvailable(1);
 				LightService.setLightHandler(0, new StripHandler());
+                #endif
 
 				doRestartServices = false;
 			}
@@ -1009,7 +1018,9 @@ void loop() {
 	}
 
 	EVERY_N_MILLISECONDS(10000) {
-		checkBattery(true); //shutdown if we are dead
+		#ifdef FEATURE_BATTERY
+        checkBattery(true); //shutdown if we are dead
+        #endif 
 
 		if ( attractMode ) {
 			do {
@@ -1116,8 +1127,8 @@ CHSV getCHSV(int hue, int sat, int bri) {
   Serial.print("[gCHSV] H:"); Serial.print(hue); Serial.print("S:"); Serial.print(sat); Serial.print("V:"); Serial.println(bri);
   float H, S, B;
   H = ((float)hue) / 182.04 / 360.0;
-  S = ((float)sat) / COLOR_SATURATION;
-  B = ((float)bri) / COLOR_SATURATION;
+  S = ((float)sat) / 255.0f;
+  B = ((float)bri) / 255.0f;
   return CHSV(H*255, S*255, B*255);
 }
 CHSV getCHSV(const CRGB& color) { //from neopixelbus
@@ -1214,6 +1225,7 @@ void sleepForever() {
 	ESP.deepSleep(0, WAKE_RF_DEFAULT); //this will sleep forever
 }
 
+#ifdef FEATURE_BATTERY
 void checkBattery(boolean shutdownIfDead) {
 	uint16_t voltage = getAdjustedVcc();
 	if ( voltage < BATTERY_DEAD_MV ) {
@@ -1234,3 +1246,5 @@ void checkBattery(boolean shutdownIfDead) {
 		state.lowPowerMode = true;
 	}
 }
+#endif
+

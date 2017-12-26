@@ -1,3 +1,10 @@
+//Comment this if you don't want Hue emulation support.
+#define FEATURE_HUE
+
+//Comment this if you don't want battery checking support.
+#define FEATURE_BATTERY
+
+
 //If you want to define a custom hardware type, change the LED_CONFIG macro.
 
 //If you have a NodeMCU or Wemos D1 Mini board, use the raw pin numbers.
