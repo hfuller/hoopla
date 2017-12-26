@@ -59,6 +59,7 @@ double actualFrameRate;
 //EFFECT SHIT
 EffectManager emgr; //lol
 int emgrLoadedCount = 0;
+int emgrPaletteCount = 0;
 int currentEffectId = 2;
 int currentPaletteId = 0;
 boolean attractMode = true;
@@ -289,6 +290,7 @@ void setup() {
 	state.color = CRGB::Orange; runLeds();
 	emgr = EffectManager(); //is there an echo in here?
 	emgrLoadedCount = emgr.getEffectCount();
+	emgrPaletteCount = emgr.getPaletteCount();
 	Serial.print("[start] loader loaded "); Serial.println(emgrLoadedCount);
 
 	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID()); //Serial.print(" with key: "); Serial.println(WiFi.psk());
@@ -451,32 +453,40 @@ void setup() {
 		if (captivePortal()) { // If caprive portal redirect instead of displaying the page.
 			return;
 		}
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.sendHeader("Content-Length", "-1");
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 		server.sendHeader("Pragma", "no-cache");
 		server.sendHeader("Expires", "-1");
 
 		String content = header;
-		content += R"(
+		server.send(200, "text/html", content);
+		
+		server.sendContent(R"(
 			<h1>Controls</h1>
 			<form method="PUT" action="/effects/current">
 			<select name="id" id="id">
-		)";
+		)");
 		for ( int i=0; i < emgrLoadedCount; i++ ) {
-			content += String("<option value=\"") + i + "\">" + emgr.getEffect(i).name + "</option>";
+			server.sendContent(String("<option value=\"") + i + "\">" + emgr.getEffect(i).name + "</option>");
 		}
-		content += R"(
-			</select>
+		server.sendContent("</select>");
+
+		content = R"(
 			<select name="palette" id="palette">
 		)";
-		for ( int i=0; i < emgr.getPaletteCount(); i++ ) {
+		for ( int i=0; i < emgrPaletteCount; i++ ) {
 			content += String("<option value=\"") + i + "\">" + emgr.getPalette(i).name + "</option>";
 		}
-		content += R"(
-			</select>
+		content += "</select>";
+		server.sendContent(content);
+
+		content = R"(
 			<!-- <button type="submit">Set</button> -->
 			<div id="color-buttons"></div>
 			<button id="color-rotate">Rotate automatically through palette colors</button>
 			</form>
+
 			<script>
 				function setEffect() {
 					let xhr = new XMLHttpRequest();
@@ -512,6 +522,10 @@ void setup() {
                                         xhr.send("rotate=true");
 					event.preventDefault();
 				}
+		)";
+		server.sendContent(content);
+
+		content = R"(
 				function loadColors() {
 					let xhr = new XMLHttpRequest();
 					xhr.addEventListener("load", function() {
@@ -558,7 +572,8 @@ void setup() {
 				
 			</script>
 		)";
-		server.send(200, "text/html", content);
+		server.sendContent(content);
+		server.client().stop();
 	});
 	server.on("/effects", HTTP_GET, [&](){
 		String content = "[";
