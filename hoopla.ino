@@ -16,6 +16,7 @@ ADC_MODE(ADC_VCC);
 #include <FS.h>
 #include <EEPROM.h>
 #include <ESP8266httpUpdate.h>
+#include <NotoriousSync.h>
 
 //Effects loading
 #include "effects.h"
@@ -27,7 +28,7 @@ ADC_MODE(ADC_VCC);
 #include <aJSON.h>
 #endif
 
-#define VERSION			54
+#define VERSION			55
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -48,6 +49,7 @@ int maxLoadMilliamps = 400;
 const byte DNS_PORT = 53;
 DNSServer dnsServer;
 ESP8266WebServer server(80);
+NotoriousSync sync;
 
 CRGB leds[400];					//NOTE: we write all pixels in some cases, like when blanking the strip.
 
@@ -820,6 +822,20 @@ void setup() {
 		server.send(200, "text/html", String(VERSION));
 		server.client().stop();
 	});
+	server.on("/sync/ping", [&](){
+		server.send(200, "text/plain", String(sync.ping()));
+		server.client().stop();
+	});
+	server.on("/sync/rtt", HTTP_GET, [&](){
+		server.send(200, "text/plain", String(sync.getRtt()));
+	});
+	server.on("/sync/rtt", HTTP_POST, [&](){
+		sync.setRtt(server.arg("rtt").toFloat());
+		server.send(200, "text/plain", "OK");
+	});
+	server.on("/sync/schedule", HTTP_POST, [&](){
+		server.send(200, "text/plain", String(sync.scheduleState(server.arg("delay").toInt(), server.arg("state").toInt())));
+	});
 	server.onNotFound ( handleNotFound );
 	server.begin(); // Web server start
 
@@ -1047,6 +1063,12 @@ void loop() {
 	if ( rotateColorFromPalette ) {
 		uint8_t beatA = beat8(30);
 		state.color = ColorFromPalette(state.currentPalette, beatA);
+	}
+
+	if ( sync.getState() >= 0 ) {
+		attractMode = false;
+		currentEffectId = sync.getState();
+		sync.reset();
 	}
 
 	runLeds();
