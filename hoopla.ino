@@ -21,13 +21,6 @@ ADC_MODE(ADC_VCC);
 //Effects loading
 #include "effects.h"
 
-#ifdef FEATURE_HUE
-//Hue emulation
-#include "SSDP.h"
-#include "LightService.h"
-#include <aJSON.h>
-#endif
-
 #define VERSION			55
 
 #define DEBUG			true
@@ -102,72 +95,6 @@ const char * header = R"(<!DOCTYPE html>
 	<a href="/update">Update</a>
 </div>
 )";
-
-#ifdef FEATURE_HUE
-//Hue emulation handler
-class StripHandler : public LightHandler {
-  private:
-    HueLightInfo _info;
-  public:
-    StripHandler() {
-      //Give some values in the constructor so, when some Hue API user
-	  //asks for our current status, it looks like we are lit with some color.
-	  _info.on = true;
-	  _info.brightness = 200;
-    }
-
-    void handleQuery(int lightNumber, HueLightInfo newInfo, aJsonObject* raw) {
-      CHSV newColor = getCHSV(newInfo.hue, newInfo.saturation, newInfo.brightness);
-      CHSV originalColor = getCHSV(leds[lightNumber]);
-      _info = newInfo;
-
-      if (newInfo.on)
-      {
-        aJsonObject* pattern = aJson.getObjectItem(raw, "pattern");
-        if (_info.effect == EFFECT_COLORLOOP) {
-          Serial.println("[emhue] Effect was set to color loop");
-          return;
-        } else if (pattern) {
-          Serial.println("[emhue] Setting pattern");
-          // pattern is an array of color settings objects
-          // apply to first pattern_len lights
-          int pattern_len = aJson.getArraySize(pattern);
-          for (int i = 0; i < pattern_len && i < numpixels; i++) {
-            aJsonObject* elem = aJson.getArrayItem(pattern, i);
-            HueLightInfo elemInfo;
-            parseHueLightInfo(newInfo, elem, &elemInfo);
-            int num_patterns = ((numpixels - i - 1) / pattern_len) + 1;
-            int brightness = elemInfo.brightness;
-            if (!elemInfo.on) {
-              brightness = 0;
-            }
-            for (int n = 0; n < num_patterns; n++) {
-              int light_index = n * pattern_len + i;
-              // no fade for patterns
-              leds[light_index] = CHSV(elemInfo.hue, elemInfo.saturation, brightness);
-            }
-          }
-          return;
-        }
-        Serial.println("[emhue] Changing color");
-        //Serial.print("[emhue] H:"); Serial.print(newColor.h); Serial.print("S:"); Serial.print(newColor.s); Serial.print("V:"); Serial.println(newColor.v);
-        state.color = newColor;
-        //Serial.print("[emhue] R:"); Serial.print(state.color.r); Serial.print("G:"); Serial.print(state.color.g); Serial.print("B:"); Serial.println(state.color.b);
-        currentEffectId = 0; //SolidAll
-      }
-      else
-      {
-        state.color = CRGB::Black;
-		currentEffectId = 0; //SolidAll
-      }
-    }
-
-    HueLightInfo getInfo(int lightNumber) {
-      //TODO: Fill in this handler to return our actual color, or something.
-      return _info;
-    }
-};
-#endif
 
 
 void setup() {
@@ -948,9 +875,6 @@ void loop() {
 		//work without the setup functions being run first.
 		ArduinoOTA.handle();
 		dnsServer.processNextRequest();
-		#ifdef FEATURE_HUE
-		LightService.update();
-		#endif
 	}
 	
 	EVERY_N_MILLISECONDS(1000) {
@@ -1035,13 +959,6 @@ void loop() {
 
 				Serial.println("[Wi-Fi] Setting up OTA");
 				ArduinoOTA.begin();
-
-				#ifdef FEATURE_HUE
-				Serial.println("[Wi-Fi] Setting up Philips Hue emulation");
-				LightService.begin(&server);
-				LightService.setLightsAvailable(1);
-				LightService.setLightHandler(0, new StripHandler());
-				#endif
 
 				doRestartServices = false;
 			}

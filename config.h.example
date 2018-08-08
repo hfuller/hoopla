@@ -1,6 +1,3 @@
-//Comment this if you don't want Hue emulation support.
-#define FEATURE_HUE
-
 //Comment this if you don't want battery checking support.
 #define FEATURE_BATTERY
 
