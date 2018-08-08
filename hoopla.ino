@@ -662,6 +662,16 @@ void setup() {
 		server.send(200, "text/html", "true");
 		server.client().stop();
 	});
+	server.on("/saved", [&](){
+		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+		server.sendHeader("Content-Length", "-1");
+		server.send(200, "text/html", header);
+		server.sendContent(R"(
+			<h1>Saved</h1>
+			<p>The changes you requested have been made. (The device may restart to apply these changes.)</p>
+		)");
+		server.client().stop();
+	});
 	server.on("/setup", [&](){
 		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -746,14 +756,16 @@ void setup() {
 		EEPROM.write(7, brightness);
 	
 		EEPROM.end(); //write it out on an ESP
-		send302("/setup?saved");
-		Serial.println("done. "); 
+		send302("/saved");
+		Serial.println("done. ");
+
+		//We don't restart the device because we don't have to, if all we changed was the quantity.
 	});
 	server.on("/setup/device", HTTP_POST, [&](){
 		Serial.print("[httpd] Device settings post. ");
 		spiffsWrite("/name", server.arg("name"));
 		
-		send302("/setup?saved");
+		send302("/saved");
 		Serial.println("done.");
 	});
 	server.on("/debug", [&](){
@@ -789,7 +801,7 @@ void setup() {
 		state.lowPowerMode = !(state.lowPowerMode);
 	});
 	server.on("/debug/reset", [&](){
-		send302("/debug?done");
+		send302("/saved?restarting=true");
 		doRestartDevice = true;
 	});
 	server.on("/debug/sleepforever", [&](){
@@ -1107,7 +1119,7 @@ void handleSetupWifiPost() {
   server.arg("p").toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
   Serial.print("ssid: "); Serial.print(ssidTemp);
   Serial.print(" pass: "); Serial.println(passwordTemp);
-  server.sendHeader("Location", "/setup?saved", true);
+  server.sendHeader("Location", "/saved?restarting=true", true);
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "-1");
