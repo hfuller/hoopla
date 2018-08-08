@@ -1125,7 +1125,7 @@ void handleSetupWifiPost() {
   server.sendHeader("Expires", "-1");
   server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
   server.client().stop(); // Stop is needed because we sent no content length
-  doConnect = true;
+  doRestartDevice = true;
 
   //Commenting this out because the 'doConnect' process will do it.
   //WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
