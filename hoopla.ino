@@ -148,7 +148,7 @@ void setup() {
 	numpixels = (EEPROM.read(2)*256)+(EEPROM.read(3)); //math devilry
 	if ( numpixels > (sizeof(leds)/sizeof(leds[0])) ) { //well we can't drive this.
 		Serial.println("[start] Resetting number of pixels");
-		EEPROM.write(2, 0);   //number of pixels (MSB)
+		EEPROM.write(2, 0); //number of pixels (MSB)
 		EEPROM.write(3, 100); //number of pixels (LSB)
 		numpixels = 100;
 	}
@@ -156,7 +156,7 @@ void setup() {
 	if ( maxLoadMilliamps < 400 || maxLoadMilliamps > 20000 ) { //absurd
 		Serial.println("[start] Resetting maximum amperage");
 		maxLoadMilliamps = 400;
-		EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);   //MSB
+		EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF); //MSB
 		EEPROM.write(5, maxLoadMilliamps & 0xFF); //LSB
 	}
 	byte ota = EEPROM.read(6);
@@ -208,7 +208,7 @@ void setup() {
 	Serial.println("[start] Starting effects");
 	currentEffectId = 2; //solid for status indication
 	//Palette
-	state.currentPalette = RainbowColors_p;                        // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
+	state.currentPalette = RainbowColors_p; // RainbowColors_p; CloudColors_p; PartyColors_p; LavaColors_p; HeatColors_p;
 	currentPaletteId = 0;
 	state.lowPowerMode = false;
 	
@@ -269,8 +269,8 @@ void setup() {
 				});
 			</script>
 		)");
-		
-		content += R"(
+
+content += R"(
 			<h2>Update from a file</h2>
 			<p>If you have a software file for this device on your computer, upload it here.</p>
 			<p>Feedback will be displayed on the LEDs regarding the progress of the update.</p>
@@ -374,40 +374,39 @@ server.on("/style.css", [&]() {
 				margin:0px !important;
 			}
 		)");
-	});
-	server.on("/", [&](){
-		if (captivePortal()) { // If caprive portal redirect instead of displaying the page.
-			return;
-		}
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.sendHeader("Content-Length", "-1");
-		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-		server.sendHeader("Pragma", "no-cache");
-		server.sendHeader("Expires", "-1");
+});
+server.on("/", [&]() {
+	if (captivePortal()) { // If caprive portal redirect instead of displaying the page.
+		return;
+	}
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+	server.sendHeader("Content-Length", "-1");
+	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+	server.sendHeader("Pragma", "no-cache");
+	server.sendHeader("Expires", "-1");
 
-		String content = header;
-		server.send(200, "text/html", content);
-		
-		server.sendContent(R"(
+	String content = header;
+	server.send(200, "text/html", content);
+
+	content += R"(
 			<h1>Controls</h1>
 			<form method="PUT" action="/effects/current">
 			<select name="id" id="id">
-		)");
-		for ( int i=0; i < emgrLoadedCount; i++ ) {
-			server.sendContent(String("<option value=\"") + i + "\">" + emgr.getEffect(i).name + "</option>");
-		}
-		server.sendContent("</select>");
+		)";
+	for ( int i = 0; i < emgrLoadedCount; i++ ) {
+		content += String() + '<option value="' + i + '">' + emgr.getEffect(i).name + "</option>";
+	}
+	content += ("</select>");
 
-		content = R"(
+	content += R"(
 			<select name="palette" id="palette">
 		)";
-		for ( int i=0; i < emgrPaletteCount; i++ ) {
-			content += String("<option value=\"") + i + "\">" + emgr.getPalette(i).name + "</option>";
-		}
-		content += "</select>";
-		server.sendContent(content);
+	for ( int i = 0; i < emgrPaletteCount; i++ ) {
+		content += String("<option value=\"") + i + "\">" + emgr.getPalette(i).name + "</option>";
+	}
+	content += "</select>";
 
-		content = R"(
+	content += R"(
 			<!-- <button type="submit">Set</button> -->
 			<div id="color-buttons"></div>
 			<button id="color-rotate">Rotate automatically through palette colors</button>
@@ -444,14 +443,14 @@ server.on("/style.css", [&]() {
 				function setColorToRotate(event) {
 					let xhr = new XMLHttpRequest();
 					xhr.open("PUT", "/color", true);
-                                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                                        xhr.send("rotate=true");
+					xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+					xhr.send("rotate=true");
 					event.preventDefault();
 				}
 		)";
-		server.sendContent(content);
+	server.sendContent(content);
 
-		content = R"(
+	content = R"(
 				function loadColors() {
 					let xhr = new XMLHttpRequest();
 					xhr.addEventListener("load", function() {
@@ -498,99 +497,105 @@ server.on("/style.css", [&]() {
 				
 			</script>
 		)";
-		server.sendContent(content);
-		server.client().stop();
-	});
-	server.on("/effects", HTTP_GET, [&](){
-		String content = "[";
-		
-		for ( int i=0; i < emgrLoadedCount; i++ ) {
-			String json = String() + "{\"id\":" + String(i) + ", \"name\":\"" + emgr.getEffect(i).name + "\"}";
-			content += json;
-			if ( i < emgrLoadedCount-1 ) {
-				content += ", ";
-			}
+	server.sendContent(content);
+	//server.client().stop();
+});
+server.on("/effects", HTTP_GET, [&]() {
+	String content = "[";
+
+	for ( int i = 0; i < emgrLoadedCount; i++ ) {
+		String json = String() + "{\"id\":" + String(i) + ", \"name\":\"" + emgr.getEffect(i).name + "\"}";
+		content += json;
+		if ( i < emgrLoadedCount - 1 ) {
+			content += ", ";
 		}
-		content += ("]");
+	}
+	content += ("]");
 
-		server.send(200, "application/json", content);
-	});
-	server.on("/color", HTTP_PUT, [&](){
-		state.color.r = server.arg("r").toInt();
-		state.color.g = server.arg("g").toInt();
-		state.color.b = server.arg("b").toInt();
-		rotateColorFromPalette = ( ( server.arg("rotate").length() > 0 ) ? true : false );
-		
-		server.send(200, "text/plain", "");
-		server.client().stop();
-	});
-	server.on("/effects/current", HTTP_GET, [&](){
-		String json = String() + "{\"id\":" + String(currentEffectId) + ", \"name\":\"" + emgr.getEffect(currentEffectId).name + "\"}";
-		
-		server.send(200, "text/html", json);
-		server.client().stop();
-	});
-	server.on("/effects/current", HTTP_PUT, [&](){
-		Serial.print("[httpd] effect save. ");
-		currentEffectId = server.arg("id").toInt();
-		if ( currentEffectId < 0 ) { //HACK to enable attract mode
-			currentEffectId = 3; //move past the single LED ones.
-			attractMode = true;
-		} else {
-			attractMode = false;
+	server.send(200, "application/json", content);
+});
+server.on("/color", HTTP_PUT, [&]() {
+	state.color.r = server.arg("r").toInt();
+	state.color.g = server.arg("g").toInt();
+	state.color.b = server.arg("b").toInt();
+	rotateColorFromPalette = ( ( server.arg("rotate").length() > 0 ) ? true : false );
+
+	server.send(200, "text/plain", "");
+	server.client().stop();
+});
+server.on("/effects/current", HTTP_GET, [&]() {
+	String json = String() + "{\"id\":" + String(currentEffectId) + ", \"name\":\"" + emgr.getEffect(currentEffectId).name + "\"}";
+
+	server.send(200, "text/html", json);
+	server.client().stop();
+});
+server.on("/effects/current", HTTP_PUT, [&]() {
+	Serial.print("[httpd] effect save. ");
+	currentEffectId = server.arg("id").toInt();
+	if ( currentEffectId < 0 ) { //HACK to enable attract mode
+		currentEffectId = 3; //move past the single LED ones.
+		attractMode = true;
+	} else {
+		attractMode = false;
+	}
+	Serial.print(currentEffectId); Serial.print(" ");
+
+	server.sendHeader("Location", "/?ok", true);
+	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+	server.sendHeader("Pragma", "no-cache");
+	server.sendHeader("Expires", "-1");
+	server.send ( 302, "text/plain", "");	// Empty content inhibits Content-length header so we have to close the socket ourselves.
+	server.client().stop(); // Stop is needed because we sent no content length
+});
+server.on("/palettes/current", HTTP_GET, [&]() {
+	String json = String("{\"id\":") + String(currentPaletteId) + ", \"name\":\"" + emgr.getPalette(currentPaletteId).name + "\", \"colors\":[";
+	for ( int i = 0; i < 16; i++ ) {
+		json += "\"#";
+
+		CRGB clr = state.currentPalette[i];
+		String cmp;
+
+		cmp = String(clr.r, HEX);
+		if ( cmp.length() < 2 ) {
+			json += "0";
 		}
-		Serial.print(currentEffectId); Serial.print(" ");
-
-		server.sendHeader("Location", "/?ok", true);
-		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-		server.sendHeader("Pragma", "no-cache");
-		server.sendHeader("Expires", "-1");
-		server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
-		server.client().stop(); // Stop is needed because we sent no content length
-	});
-	server.on("/palettes/current", HTTP_GET, [&](){
-		String json = String("{\"id\":") + String(currentPaletteId) + ", \"name\":\"" + emgr.getPalette(currentPaletteId).name + "\", \"colors\":[";
-		for ( int i=0; i<16; i++ ) {
-			json += "\"#";
-
-			CRGB clr = state.currentPalette[i];
-			String cmp;
-			
-			cmp = String(clr.r, HEX);
-			if ( cmp.length() < 2 ) { json += "0"; }
-			json += cmp;
-			cmp = String(clr.g, HEX);
-			if ( cmp.length() < 2 ) { json += "0"; }
-			json += cmp;
-			cmp = String(clr.b, HEX);
-			if ( cmp.length() < 2 ) { json += "0"; }
-			json += cmp;
-
-			json += "\"";
-
-			if ( i < 16-1 ) {
-				json += ", ";
-			}
+		json += cmp;
+		cmp = String(clr.g, HEX);
+		if ( cmp.length() < 2 ) {
+			json += "0";
 		}
-		json += "]}";
-		
-		server.send(200, "text/html", json);
-		server.client().stop();
-	});	
-	server.on("/palettes/current", HTTP_PUT, [&](){
-		int paletteId = server.arg("id").toInt();
-		currentPaletteId = paletteId;
-		state.currentPalette = emgr.getPalette(paletteId).palette;
-		Serial.println(paletteId);
-		
-		server.send(200, "text/html", "true");
-		server.client().stop();
-	});
-	server.on("/saved", [&](){
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.sendHeader("Content-Length", "-1");
-		server.send(200, "text/html", header);
-		server.sendContent(R"(
+		json += cmp;
+		cmp = String(clr.b, HEX);
+		if ( cmp.length() < 2 ) {
+			json += "0";
+		}
+		json += cmp;
+
+		json += "\"";
+
+		if ( i < 16 - 1 ) {
+			json += ", ";
+		}
+	}
+	json += "]}";
+
+	server.send(200, "text/html", json);
+	server.client().stop();
+});
+server.on("/palettes/current", HTTP_PUT, [&]() {
+	int paletteId = server.arg("id").toInt();
+	currentPaletteId = paletteId;
+	state.currentPalette = emgr.getPalette(paletteId).palette;
+	Serial.println(paletteId);
+
+	server.send(200, "text/html", "true");
+	server.client().stop();
+});
+server.on("/saved", [&]() {
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+	server.sendHeader("Content-Length", "-1");
+	server.send(200, "text/html", header);
+	server.sendContent(R"(
 			<h1>Saved</h1>
 			<p>The changes you requested have been made. (The device may restart to apply these changes.)</p>
 		)");
@@ -675,35 +680,54 @@ server.on("/style.css", [&]() {
 		EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);
 		EEPROM.write(5, maxLoadMilliamps & 0xFF);
 
-		int brightness = server.arg("brightness").toInt();
-		FastLED.setBrightness(brightness);
-		EEPROM.write(7, brightness);
-	
-		EEPROM.end(); //write it out on an ESP
-		send302("/saved");
-		Serial.println("done. ");
+server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
+server.on("/setup/leds", HTTP_POST, [&]() {
+	Serial.print("[httpd] LED settings post. ");
+	EEPROM.begin(256);
 
-		//We don't restart the device because we don't have to, if all we changed was the quantity.
-	});
-	server.on("/setup/device", HTTP_POST, [&](){
-		Serial.print("[httpd] Device settings post. ");
-		spiffsWrite("/name", server.arg("name"));
-		
-		send302("/saved");
-		Serial.println("done.");
-	});
-	server.on("/debug", [&](){
-		String content = header;
-		content += ("<h1>About</h1><ul>");
+	EEPROM.write(1, server.arg("hardware_type").toInt());
+	Serial.print(EEPROM.read(1)); Serial.print("->1 ");
 
-		unsigned long uptime = millis();
-		content += (String("<li>Version ") + VERSION + " built on " + __DATE__ + " at " + __TIME__ + "</li>");
-		content += (String("<li>Booted about ") + (uptime/60000) + " minutes ago (" + ESP.getResetReason() + ")</li>");
-		content += (String("<li>Battery: ") + getAdjustedVcc() + "mV (Raw: " + ESP.getVcc() + ")</li>");
-		content += (String("<li>Goal: ") + TARGET_FRAMERATE + "fps, Actual: " + actualFrameRate + "fps</li>");
-		content += ("</ul>");
-	
-		content += (R"(
+	numpixels = server.arg("numpixels").toInt();
+	EEPROM.write(2, (numpixels >> 8) & 0xFF); //number of pixels (MSB)
+	EEPROM.write(3, numpixels & 0xFF); //number of pixels (LSB)
+	Serial.print(EEPROM.read(2)); Serial.print("->2 ");
+	Serial.print(EEPROM.read(3)); Serial.print("->3 ");
+
+	maxLoadMilliamps = server.arg("maxLoadMilliamps").toInt();
+	EEPROM.write(4, (maxLoadMilliamps >> 8) & 0xFF);
+	EEPROM.write(5, maxLoadMilliamps & 0xFF);
+
+	int brightness = server.arg("brightness").toInt();
+	FastLED.setBrightness(brightness);
+	EEPROM.write(7, brightness);
+
+	EEPROM.end(); //write it out on an ESP
+	send302("/saved");
+	Serial.println("done. ");
+
+	//We don't restart the device because we don't have to, if all we changed was the quantity.
+});
+server.on("/setup/device", HTTP_POST, [&]() {
+	Serial.print("[httpd] Device settings post. ");
+	spiffsWrite("/name", server.arg("name"));
+
+	send302("/saved");
+	Serial.println("done.");
+});
+server.on("/debug", [&]() {
+	String content = header;
+	content += ("<h1>About</h1><ul>");
+
+	unsigned long uptime = millis();
+	content += (String("<li>Version ") + VERSION + " built on " + __DATE__ + " at " + __TIME__ + "</li>");
+	content += (String("<li>Booted about ") + (uptime / 60000) + " minutes ago (" + ESP.getResetReason() + ")</li>");
+	content += (String("<li>Battery: ") + getAdjustedVcc() + " mV (Raw: " + ESP.getVcc() + ")</li>");
+	content += (String("<li>Memory: ") + ESP.getFreeHeap() + " bytes free</li>");
+	content += (String("<li>Framerate: ") + actualFrameRate + " fps (Goal: " + TARGET_FRAMERATE + " fps)</li>");
+	content += ("</ul>");
+
+	content += (R"(
 			<h2>Debugging buttons (don't touch)</h2>
 			<form method="POST" action="/debug/lowpowermode">
 				<button type="submit">Toggle low power mode now</button>
@@ -718,200 +742,152 @@ server.on("/style.css", [&]() {
 				<button type='submit'>Forget connection info</button>
 			</form>
 		)");
-		server.send(200, "text/html", content);
-	});
-	server.on("/debug/lowpowermode", [&](){
-		send302("/debug?done");
-		state.lowPowerMode = !(state.lowPowerMode);
-	});
-	server.on("/debug/reset", [&](){
-		send302("/saved?restarting=true");
-		doRestartDevice = true;
-	});
-	server.on("/debug/sleepforever", [&](){
-		send302("/debug?done");
-		sleepForever();
-	});
-	server.on("/debug/disconnect", [&](){
-		send302("/debug?done");
-		delay(500);
-		WiFi.disconnect();
-	});
-	server.on("/debug/test", [&](){
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/html", "Testing stuff... ");
+	server.send(200, "text/html", content);
+});
+server.on("/debug/lowpowermode", [&]() {
+	send302("/debug?done");
+	state.lowPowerMode = !(state.lowPowerMode);
+});
+server.on("/debug/reset", [&]() {
+	send302("/saved?restarting=true");
+	doRestartDevice = true;
+});
+server.on("/debug/sleepforever", [&]() {
+	send302("/debug?done");
+	sleepForever();
+});
+server.on("/debug/disconnect", [&]() {
+	send302("/debug?done");
+	delay(500);
+	WiFi.disconnect();
+});
+server.on("/debug/test", [&]() {
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+	server.send(200, "text/html", "Testing stuff... ");
 
-		uint32_t flashChipSize = ESP.getFlashChipSize();
-		String platform = "generic";
-		if ( flashChipSize == 4194304 ) {
-			platform = "nodemcu"; //HACK HACK HACK
-		}
-		String url = String("http://update.pixilic.com/hoopla.ino.") + platform + ".bin";
-		String versionHeader = String("{\"flashChipSize\":") + String(flashChipSize) + ", \"version\":" + String(VERSION) + ", \"name\":\"" + String(devHostName) + "\"}";
-		server.sendContent(url);
-		server.sendContent(versionHeader);
+	uint32_t flashChipSize = ESP.getFlashChipSize();
+	String platform = "generic";
+	if ( flashChipSize == 4194304 ) {
+		platform = "nodemcu"; //HACK HACK HACK
+	}
+	String url = String("http://update.pixilic.com/hoopla.ino.") + platform + ".bin";
+	String versionHeader = String("{\"flashChipSize\":") + String(flashChipSize) + ", \"version\":" + String(VERSION) + ", \"name\":\"" + String(devHostName) + "\"}";
+	server.sendContent(url);
+	server.sendContent(versionHeader);
 
-		server.sendContent("done.");
-		server.client().stop();
-	});
-	server.on("/version.json", [&](){
-		server.send(200, "text/html", String(VERSION));
-		server.client().stop();
-	});
-	server.on("/sync/ping", [&](){
-		server.send(200, "text/plain", String(sync.ping()));
-		server.client().stop();
-	});
-	server.on("/sync/rtt", HTTP_GET, [&](){
-		server.send(200, "text/plain", String(sync.getRtt()));
-	});
-	server.on("/sync/rtt", HTTP_POST, [&](){
-		sync.setRtt(server.arg("rtt").toFloat());
-		server.send(200, "text/plain", "OK");
-	});
-	server.on("/sync/schedule", HTTP_POST, [&](){
-		server.send(200, "text/plain", String(sync.scheduleState(server.arg("delay").toInt(), server.arg("state").toInt())));
-	});
-	server.onNotFound ( handleNotFound );
-	server.begin(); // Web server start
+	server.sendContent("done.");
+	server.client().stop();
+});
+server.on("/version.json", [&]() {
+	server.send(200, "text/html", String(VERSION));
+	server.client().stop();
+});
+server.on("/sync/ping", [&]() {
+	server.send(200, "text/plain", String(sync.ping()));
+	server.client().stop();
+});
+server.on("/sync/rtt", HTTP_GET, [&]() {
+	server.send(200, "text/plain", String(sync.getRtt()));
+});
+server.on("/sync/rtt", HTTP_POST, [&]() {
+	sync.setRtt(server.arg("rtt").toFloat());
+	server.send(200, "text/plain", "OK");
+});
+server.on("/sync/schedule", HTTP_POST, [&]() {
+	server.send(200, "text/plain", String(sync.scheduleState(server.arg("delay").toInt(), server.arg("state").toInt())));
+});
+server.onNotFound ( handleNotFound );
+server.begin(); // Web server start
 
-	state.color = CRGB::Yellow; runLeds();
-	Serial.println("[start] Setting up OTA");
-	// Port defaults to 8266
-	//ArduinoOTA.setPort(8266);
-	// Hostname defaults to esp8266-[ChipID]
-	ArduinoOTA.setHostname(devHostName);
-	// No authentication by default
-	//ArduinoOTA.setPassword((const char *)"123");
-	ArduinoOTA.onStart([]() {
-		currentEffectId = 1;
-		state.color = CRGB::OrangeRed;
-		Serial.println("Starting OTA update. Other functions will be suspended.");
-	});
-	ArduinoOTA.onEnd([]() {
-		currentEffectId = 2;
+state.color = CRGB::Yellow; runLeds();
+Serial.println("[start] Starting HTTP Update Checker");
+ESPhttpUpdate.rebootOnUpdate(false);
+server.on("/update/check", [&]() {
+	int oldEffect = currentEffectId;
+
+	currentEffectId = 2;
+	runLeds();
+	//WiFiUDP::stopAll();
+
+	boolean result = phoneHome();
+	if ( result && ESPhttpUpdate.getLastError() == 0 ) { //we updated and there wasn't an error
+		state.intEffectState = numpixels - 1;
 		state.color = CRGB::Yellow;
 		runLeds();
-		
-		EEPROM.begin(256);
-		EEPROM.write(6,1);
-		EEPROM.end(); //notify that we just installed an update OTA.
-		
-		Serial.println("\nOTA update complete. Reloading");
-	});
-	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-		if ( leds[0] == CRGB(0,0,0) ) {
-			state.color = CRGB::OrangeRed; 
-		} else {
-			state.color = CRGB::Black;
-		}
-		runLeds();
+	} else {
+		Serial.println("[check] Updater returned that an update wasn't performed");
+		currentEffectId = oldEffect;
+	}
 
-		Serial.printf("OTA progress: %u%%\r", (progress / (total / 100)));
-	});
-	ArduinoOTA.onError([](ota_error_t error) {
-		state.color = CRGB::Red;
-		Serial.printf("OTA Error[%u]: ", error);
-		if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-		else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-		else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-		else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-		else if (error == OTA_END_ERROR) Serial.println("End Failed");
-	});
+	String resultStr = ESPhttpUpdate.getLastErrorString();
+	if ( result == false && resultStr.length() < 1 ) {
+		resultStr = "No updates were necessary.";
+	}
 
-	Serial.println("[start] Starting HTTP Update Checker");
-	ESPhttpUpdate.rebootOnUpdate(false);
-	server.on("/update/check", [&](){
-		int oldEffect = currentEffectId;
-		
-		currentEffectId = 2;
-		runLeds();
-		//WiFiUDP::stopAll();
-		
-		boolean result = phoneHome();
-		if ( result && ESPhttpUpdate.getLastError() == 0 ) { //we updated and there wasn't an error
-			state.intEffectState = numpixels-1;
-			state.color = CRGB::Yellow;
-			runLeds();
-		} else {
-			Serial.println("[check] Updater returned that an update wasn't performed");
-			currentEffectId = oldEffect;
-		}
+	server.send(200, "text/html", resultStr);
+	server.client().stop();
 
-		String resultStr = ESPhttpUpdate.getLastErrorString();
-		if ( result == false && resultStr.length() < 1 ) {
-			resultStr = "No updates were necessary.";
-		}
+});
 
-				server.send(200, "text/html", resultStr);
-		server.client().stop();
+state.color = CRGB::Green; runLeds();
+currentEffectId = 6;
 
-		});
+#ifdef FEATURE_BATTERY
+Serial.println("[start] Checking battery");
+checkBattery(false); //don't actually shut down even if we are dead. We will do that later
+#endif
 
-	state.color = CRGB::Green; runLeds();
-	currentEffectId = 6;
+delay(1000);
 
-	#ifdef FEATURE_BATTERY
-	Serial.println("[start] Checking battery");
-	checkBattery(false); //don't actually shut down even if we are dead. We will do that later
-	#endif
-
-	delay(1000);
-
-	Serial.println("[start] Startup complete.");
+Serial.println("[start] Startup complete.");
 }
 
 void loop() {
-	
+
 	server.handleClient();
-	
+
 	if ( ! doRestartServices ) {
 		//The services have been started at least once.
 		//If we don't wait until they have been started,
 		//the service will blow up because it tries to
 		//work without the setup functions being run first.
-		ArduinoOTA.handle();
 		dnsServer.processNextRequest();
 	}
-	
+
 	EVERY_N_MILLISECONDS(1000) {
 
 		//time to do our every-second tasks
 
-		#ifdef DEBUG
-		actualFrameRate = (double)frameCount/((double)(millis()-timer1s)/1000);
+#ifdef DEBUG
+		actualFrameRate = (double)frameCount / ((double)(millis() - timer1s) / 1000);
 		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(actualFrameRate);
-		uint32_t loadmw = calculate_unscaled_power_mW(leds,numpixels);
-		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw/5); Serial.print("mA) - ");
+		uint32_t loadmw = calculate_unscaled_power_mW(leds, numpixels);
+		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw / 5); Serial.print("mA) - ");
 		Serial.print("Wi-Fi: "); Serial.print( (WiFi.status() == WL_CONNECTED) ? "Connected" : "Disconnected");
 		Serial.println();
-		#endif /*DEBUG*/
+#endif /*DEBUG*/
 
 		timer1s = millis();
 		frameCount = 0;
 
 		/*
-		if ( currentEffectId <= 2 && millis() < 10000 ) {
+			if ( currentEffectId <= 2 && millis() < 10000 ) {
 			//we are stuck in a status display
 			currentEffectId = 6;
-		}
+			}
 		*/
 
 	}
 	EVERY_N_MILLISECONDS(5000) {
 
-		if ( doRestartDevice ) {
-			ESP.restart();
-		}
-
 		//do Wi-Fi stuff
 
-		#ifdef DEBUG
+#ifdef DEBUG
 		Serial.print("[Wi-Fi] ");
 		if ( WiFi.status() == WL_CONNECTED ) {
 			//we are connected, presumably.
 			Serial.print("WL_CONNECTED ");
-			if ( WiFi.localIP() == IPAddress(0,0,0,0) ) {
+			if ( WiFi.localIP() == IPAddress(0, 0, 0, 0) ) {
 				doConnect = true;
 			}
 		} else if ( WiFi.status() == WL_IDLE_STATUS ) {
@@ -924,14 +900,14 @@ void loop() {
 		Serial.print(WiFi.SSID());
 		Serial.print(" as "); Serial.print(WiFi.localIP());
 		Serial.print(" at "); Serial.println(WiFi.RSSI());
-		#endif /*DEBUG*/
+#endif /*DEBUG*/
 
 		if ( (millis() - lastWirelessChange) > 60000 ) {
 			//We tried to associate to wireless over 60 seconds ago.
-			if ( ( WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0,0,0,0) ) && !isAP ) {
+			if ( ( WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0, 0, 0, 0) ) && !isAP ) {
 				//We were connected for at least a minute, but we must have lost connection.
 				//In the first case, the SDK reports we are disconnected.
-				//In the second case, the SDK claims we are associated but we are totally not	
+				//In the second case, the SDK claims we are associated but we are totally not
 				doConnect = true;
 			}
 		} else if ( (millis() - lastWirelessChange) > 15000 ) {
@@ -941,7 +917,7 @@ void loop() {
 				//WiFi.disconnect(); //Don't do this or it will clear the ssid/pass in nvram!!!!!
 				Serial.println("[Wi-Fi] Starting wireless AP");
 				WiFi.mode(WIFI_AP);
-				WiFi.softAP(devHostName,passwordAP);
+				WiFi.softAP(devHostName, passwordAP);
 				delay(100); //reliable IP retrieval.
 				Serial.print("[Wi-Fi] AP started. I am "); Serial.println(WiFi.softAPIP());
 				lastWirelessChange = millis();
@@ -963,7 +939,7 @@ void loop() {
 			isAP = false;
 			WiFi.disconnect();
 			WiFi.mode(WIFI_STA);
-			WiFi.begin(ssidTemp,passwordTemp);
+			WiFi.begin(ssidTemp, passwordTemp);
 			doConnect = false; //shouldn't need this but sometimes we do... if WiFi.status() isn't updated by the underlying libs
 			lastWirelessChange = millis();
 			doRestartServices = true; //restart OTA
@@ -972,15 +948,20 @@ void loop() {
 	}
 
 	EVERY_N_MILLISECONDS(10000) {
-		#ifdef FEATURE_BATTERY
+#ifdef FEATURE_BATTERY
 		checkBattery(true); //shutdown if we are dead
-		#endif 
+#endif
 
 		if ( attractMode ) {
 			do {
-				currentEffectId = (currentEffectId+1) % emgrLoadedCount; //wrap around if we're over the loaded count
+				currentEffectId = (currentEffectId + 1) % emgrLoadedCount; //wrap around if we're over the loaded count
 			} while ( ! emgr.getEffect(currentEffectId).useForAttractMode ); //Skip any effects that don't want to be seen in attract mode
 		}
+		
+		if ( doRestartDevice ) {
+			ESP.restart();
+		}
+
 	}
 
 	if ( rotateColorFromPalette ) {
@@ -999,7 +980,7 @@ void loop() {
 }
 
 void runLeds() {
-	
+
 	//WOW this function got way simpler than it used to be. I just want to talk about that.
 
 	frameCount++; //for frame rate measurement
@@ -1013,83 +994,81 @@ void runLeds() {
 
 /** Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
 boolean captivePortal() {
-  if (!isIp(server.hostHeader()) && server.hostHeader() != (String(devHostName)+".local")) {
-	Serial.println("[httpd] Request redirected to captive portal");
-	server.sendHeader("Location", String("http://") + toStringIp(server.client().localIP()), true);
-	server.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
-	server.client().stop(); // Stop is needed because we sent no content length
-	return true;
-  }
-  return false;
+	if (!isIp(server.hostHeader()) && server.hostHeader() != (String(devHostName) + ".local")) {
+		Serial.println("[httpd] Request redirected to captive portal");
+		server.sendHeader("Location", String("http://") + toStringIp(server.client().localIP()), true);
+		server.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
+		server.client().stop(); // Stop is needed because we sent no content length
+		return true;
+	}
+	return false;
 }
 
 /** Handle the WLAN save form and redirect to WLAN config page again */
 void handleSetupWifiPost() {
-  Serial.print("[httpd]  wifi save. ");
-  server.arg("n").toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
-  server.arg("p").toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
-  Serial.print("ssid: "); Serial.print(ssidTemp);
-  Serial.print(" pass: "); Serial.println(passwordTemp);
-  server.sendHeader("Location", "/saved?restarting=true", true);
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.sendHeader("Pragma", "no-cache");
-  server.sendHeader("Expires", "-1");
-  server.send ( 302, "text/plain", "");  // Empty content inhibits Content-length header so we have to close the socket ourselves.
-  server.client().stop(); // Stop is needed because we sent no content length
-  doRestartDevice = true;
-
-  //Commenting this out because the 'doConnect' process will do it.
-  //WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
+	Serial.print("[httpd]	wifi save. ");
+	server.arg("n").toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
+	server.arg("p").toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
+	Serial.print("ssid: "); Serial.print(ssidTemp);
+	Serial.print(" pass: "); Serial.println(passwordTemp);
+	server.sendHeader("Location", "/saved?restarting=true", true);
+	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+	server.sendHeader("Pragma", "no-cache");
+	server.sendHeader("Expires", "-1");
+	server.send ( 302, "text/plain", "");	// Empty content inhibits Content-length header so we have to close the socket ourselves.
+	server.client().stop(); // Stop is needed because we sent no content length
+	WiFi.begin(ssidTemp,passwordTemp); //should also commit to nv
+	doRestartDevice = true;
 }
 
 void handleNotFound() {
-  if (captivePortal()) { // If caprive portal redirect instead of displaying the error page.
-    return;
-  }
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += ( server.method() == HTTP_GET ) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
+	if (captivePortal()) { // If caprive portal redirect instead of displaying the error page.
+		return;
+	}
+	String message = "File Not Found\n\n";
+	message += "URI: ";
+	message += server.uri();
+	message += "\nMethod: ";
+	message += ( server.method() == HTTP_GET ) ? "GET" : "POST";
+	message += "\nArguments: ";
+	message += server.args();
+	message += "\n";
 
-  for ( uint8_t i = 0; i < server.args(); i++ ) {
-    message += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
-  }
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.sendHeader("Pragma", "no-cache");
-  server.sendHeader("Expires", "-1");
-  server.send ( 404, "text/plain", message );
+	for ( uint8_t i = 0; i < server.args(); i++ ) {
+		message += " " + server.argName ( i ) + ": " + server.arg ( i ) + "\n";
+	}
+	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+	server.sendHeader("Pragma", "no-cache");
+	server.sendHeader("Expires", "-1");
+	server.send ( 404, "text/plain", message );
 }
 
 boolean isIp(String str) {
-  for (int i = 0; i < str.length(); i++) {
-    int c = str.charAt(i);
-    if (c != '.' && (c < '0' || c > '9')) {
-      return false;
-    }
-  }
-  return true;
+	for (int i = 0; i < str.length(); i++) {
+		int c = str.charAt(i);
+		if (c != '.' && (c < '0' || c > '9')) {
+			return false;
+		}
+	}
+	return true;
 }
 String toStringIp(IPAddress ip) {
-  String res = "";
-  for (int i = 0; i < 3; i++) {
-    res += String((ip >> (8 * i)) & 0xFF) + ".";
-  }
-  res += String(((ip >> 8 * 3)) & 0xFF);
-  return res;
+	String res = "";
+	for (int i = 0; i < 3; i++) {
+		res += String((ip >> (8 * i)) & 0xFF) + ".";
+	}
+	res += String(((ip >> 8 * 3)) & 0xFF);
+	return res;
 }
 
 CHSV getCHSV(int hue, int sat, int bri) {
-  //TODO: This is stupid inefficient (especially with regards to H value). Fix it.
-  Serial.print("[gCHSV] H:"); Serial.print(hue); Serial.print("S:"); Serial.print(sat); Serial.print("V:"); Serial.println(bri);
-  float H, S, B;
-  H = ((float)hue) / 182.04 / 360.0;
-  S = ((float)sat) / 255.0f;
-  B = ((float)bri) / 255.0f;
-  return CHSV(H*255, S*255, B*255);
+	//TODO: This is stupid inefficient (especially with regards to H value). Fix it.
+	Serial.print("[gCHSV] H:"); Serial.print(hue); Serial.print("S:"); Serial.print(sat); Serial.print("V:"); Serial.println(bri);
+	float H, S, B;
+	H = ((float)hue) / 182.04 / 360.0;
+	S = ((float)sat) / 255.0f;
+	B = ((float)bri) / 255.0f;
+	return CHSV(H * 255, S * 255, B * 255);
 }
 CHSV getCHSV(const CRGB& color) { //from neopixelbus
 	// convert colors to float between (0.0 - 1.0)
@@ -1102,7 +1081,7 @@ CHSV getCHSV(const CRGB& color) { //from neopixelbus
 
 	float d = max - min;
 
-	float h = 0.0; 
+	float h = 0.0;
 	float v = max;
 	float s = (v == 0.0f) ? 0 : (d / v);
 
@@ -1123,8 +1102,8 @@ CHSV getCHSV(const CRGB& color) { //from neopixelbus
 		h /= 6.0f;
 	}
 
-	return CHSV(h,s,v);
-	return CHSV(h,s,v);
+	return CHSV(h, s, v);
+	return CHSV(h, s, v);
 }
 
 void spiffsWrite(String path, String contents) {
@@ -1153,11 +1132,11 @@ boolean phoneHome() {
 	String versionHeader = String("{\"flashChipSize\":") + String(flashChipSize) + ", \"version\":" + String(VERSION) + ", \"name\":\"" + devHostName + "\"}";
 
 	HTTPUpdateResult ret = ESPhttpUpdate.update(url, versionHeader);
-	switch(ret) {
+	switch (ret) {
 		case HTTP_UPDATE_OK:
 			Serial.printf("[chkup] Update Success");
 			EEPROM.begin(256);
-			EEPROM.write(6,1);
+			EEPROM.write(6, 1);
 			EEPROM.end(); //notify that we just installed an update OTA.
 			doRestartDevice = true;
 			return true;
@@ -1170,7 +1149,7 @@ boolean phoneHome() {
 }
 
 uint16_t getAdjustedVcc() {
-	return ESP.getVcc()+500;
+	return ESP.getVcc() + 500;
 }
 
 void send302(String dest) {
@@ -1194,7 +1173,7 @@ void checkBattery(boolean shutdownIfDead) {
 		state.intEffectState = 0;
 		currentEffectId = 2;
 		runLeds();
-	
+
 		if ( shutdownIfDead ) {
 			sleepForever();
 		}
