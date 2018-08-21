@@ -599,86 +599,72 @@ server.on("/saved", [&]() {
 			<h1>Saved</h1>
 			<p>The changes you requested have been made. (The device may restart to apply these changes.)</p>
 		)");
-		server.client().stop();
-	});
-	server.on("/setup", [&](){
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-		server.sendHeader("Pragma", "no-cache");
-		server.sendHeader("Expires", "-1");
-		server.sendHeader("Content-Length", "-1");
-		server.send(200, "text/html", header);
-		
-		server.sendContent("\
-			<h1>Setup</h1>\
-			<h4>Nearby networks</h4>\
-			<table>\
-			<tr><th>Name</th><th>Security</th><th>Signal</th></tr>\
-		");
-		Serial.println("[httpd] scan start");
-		int n = WiFi.scanNetworks();
-		Serial.println("[httpd] scan done");
-		for (int i = 0; i < n; i++) {
-			server.sendContent(String() + "\r\n<tr onclick=\"document.getElementById('ssidinput').value=this.firstChild.firstChild.innerHTML; setTimeout(function(){ document.getElementById('pskinput').focus(); }, 100);\"><td><a href=\"#setup-wifi\">" + WiFi.SSID(i) + "</a></td><td>" + String((WiFi.encryptionType(i) == ENC_TYPE_NONE)?"Open":"Encrypted") + "</td><td>" + WiFi.RSSI(i) + "dBm</td></tr>");
-		}
-		server.sendContent(String() + "\
-			</table>\
-			<h4>Connect to a network</h4>\
-			<form method='POST' id='setup-wifi' action='/setup/wifi'>\
-				<input type='text' id='ssidinput' placeholder='network' value='" + String(WiFi.SSID()) + "' name='n'>\
-				<input type='password' id='pskinput' placeholder='password' value='" + String(WiFi.psk()) + "' name='p'>\
-				<button type='submit'>Save and Connect</button>\
-			</form>\
-		");
+	server.client().stop();
+});
+server.on("/setup", [&]() {
+	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+	server.sendHeader("Pragma", "no-cache");
+	server.sendHeader("Expires", "-1");
+	server.sendHeader("Content-Length", "-1");
+	String content = header;
 
-		server.sendContent(String() + R"(
-			<h4>Device setup</h4>
-			<form method="POST" id="setup-device" action="/setup/device">
-				<input name="name" placeholder="Device name" value=")" + spiffsRead("/name") + R"(">
-				<button type="submit">Save</button>
-			</form>
-		)");
+	content += R"(
+		<h1>Setup</h1>
+		<h4>Nearby networks</h4>
+		<table>
+		<tr><th>Name</th><th>Security</th><th>Signal</th></tr>
+	)";
 
-		EEPROM.begin(256);
-		byte hardwareType = EEPROM.read(1);
-		byte brightness = EEPROM.read(7);
-		EEPROM.end(); //HACK HACK HACK?
+	Serial.println("[httpd] scan start");
+	int n = WiFi.scanNetworks();
+	Serial.println("[httpd] scan done");
+	for (int i = 0; i < n; i++) {
+		content += R"(<tr onclick="document.getElementById('ssidinput').value=this.firstChild.firstChild.innerHTML; setTimeout(function(){ document.getElementById('pskinput').focus(); }, 100);"><td><a href="#setup-wifi">)";
+		content += String() + WiFi.SSID(i) + "</a></td><td>" + String((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? "Open" : "Encrypted");
+		content += String() + "</td><td>" + WiFi.RSSI(i) + "dBm</td></tr>";
+	}
+	content += R"(
+		</table>
+		<h4>Connect to a network</h4>
+		<form method='POST' id='setup-wifi' action='/setup/wifi'>
+			<input type='text' id='ssidinput' placeholder='network' value=')" + String(WiFi.SSID()) + R"(' name='n'>
+			<input type='password' id='pskinput' placeholder='password' value=')" + String(WiFi.psk()) + R"(' name='p'>
+			<button type='submit'>Save and Connect</button>
+		</form>
+	)";
 
-		server.sendContent(String() + R"(
-			<h4>LED setup</h4>
-			<h5>Don't touch this stuff!</h5>
-			<form method="POST" action="/setup/leds">
-				<select name="hardware_type" id="hardware_type"><!-- )" + hardwareType + R"( -->
-					<option value="0" )" + (hardwareType==0 ? "selected" : "") + R"(>Custom setup from config.h (set at build)</option>
-					<option value="1" )" + (hardwareType==1 ? "selected" : "") + R"(>NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
-					<option value="2" )" + (hardwareType==2 ? "selected" : "") + R"(>NeoPixels on GPIO5(D1) (Makers Local 256; Synapse Wireless)</option>
-					<option value="3" )" + (hardwareType==3 ? "selected" : "") + R"(>DotStars on GPIO0(D3)/GPIO2(D4) (JC/JB Hoop)</option>
-				</select>
-				<input name="numpixels" placeholder="Number of LEDs" value=")" + numpixels + R"(">
-				<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw" value=")" + maxLoadMilliamps + R"(">
-				<input name="brightness" placeholder="Brightness (1-255) " value=")" + brightness + R"(">
-				<button type="submit">Save</button>
-			</form>
-		)");
-		server.client().stop();
-	});
-	server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
-	server.on("/setup/leds", HTTP_POST, [&](){
-		Serial.print("[httpd] LED settings post. ");
-		EEPROM.begin(256);
-	
-		EEPROM.write(1, server.arg("hardware_type").toInt());	
-		Serial.print(EEPROM.read(1)); Serial.print("->1 ");
-	
-		numpixels = server.arg("numpixels").toInt();
-		EEPROM.write(2, (numpixels>>8) & 0xFF);   //number of pixels (MSB)
-		EEPROM.write(3, numpixels & 0xFF); //number of pixels (LSB)
-		Serial.print(EEPROM.read(2)); Serial.print("->2 ");
-		Serial.print(EEPROM.read(3)); Serial.print("->3 ");
-	
-		maxLoadMilliamps = server.arg("maxLoadMilliamps").toInt();
-		EEPROM.write(4, (maxLoadMilliamps>>8) & 0xFF);
-		EEPROM.write(5, maxLoadMilliamps & 0xFF);
+	content += R"(
+		<h4>Device setup</h4>
+		<form method="POST" id="setup-device" action="/setup/device">
+			<input name="name" placeholder="Device name" value=")" + spiffsRead("/name") + R"(">
+			<button type="submit">Save</button>
+		</form>
+	)";
+
+	EEPROM.begin(256);
+	byte hardwareType = EEPROM.read(1);
+	byte brightness = EEPROM.read(7);
+	EEPROM.end(); //HACK HACK HACK?
+
+	content += R"(
+		<h4>LED setup</h4>
+		<h5>Don't touch this stuff!</h5>
+		<form method="POST" action="/setup/leds">
+			<select name="hardware_type" id="hardware_type"><!-- )" + String(hardwareType) + R"( -->
+				<option value="0" )" + (hardwareType == 0 ? "selected" : "") + R"(>Custom setup from config.h (set at build)</option>
+				<option value="1" )" + (hardwareType == 1 ? "selected" : "") + R"(>NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
+				<option value="2" )" + (hardwareType == 2 ? "selected" : "") + R"(>NeoPixels on GPIO5(D1) (Makers Local 256; Synapse Wireless)</option>
+				<option value="3" )" + (hardwareType == 3 ? "selected" : "") + R"(>DotStars on GPIO0(D3)/GPIO2(D4) (JC Hoop)</option>
+			</select>
+			<input name="numpixels" placeholder="Number of LEDs" value=")" + String(numpixels) + R"(">
+			<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw" value=")" + String(maxLoadMilliamps) + R"(">
+			<input name="brightness" placeholder="Brightness (1-255) " value=")" + String(brightness) + R"(">
+			<button type="submit">Save</button>
+		</form>
+	)";
+	server.send(200, "text/html", content);
+	server.client().stop();
+});
 
 server.on("/setup/wifi", HTTP_POST, handleSetupWifiPost);
 server.on("/setup/leds", HTTP_POST, [&]() {
