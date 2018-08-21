@@ -7,9 +7,6 @@ ADC_MODE(ADC_VCC);
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 
 #include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
 #include <FastLED.h>
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
@@ -21,7 +18,7 @@ ADC_MODE(ADC_VCC);
 //Effects loading
 #include "effects.h"
 
-#define VERSION			55
+#define VERSION			57
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -283,65 +280,65 @@ void setup() {
 			</form>
 		)";
 
-		server.send(200, "text/html", content);
-	});
-	// handler for the /update form POST (once file upload finishes)
-	server.on("/update", HTTP_POST, [&](){
-		server.sendHeader("Connection", "close");
-		server.sendHeader("Access-Control-Allow-Origin", "*");
-		server.send(200, "text/plain", (Update.hasError())?"FAIL":"OK");
-	},[&](){
-		// handler for the file upload, get's the sketch bytes, and writes
-		// them through the Update object
-		HTTPUpload& upload = server.upload();
-		if(upload.status == UPLOAD_FILE_START){
-			Serial.printf("Starting HTTP update from %s - other functions will be suspended.\r\n", upload.filename.c_str());
-			currentEffectId = 2;
-			state.color = CRGB::OrangeRed;
+server.send(200, "text/html", content);
+});
+// handler for the /update form POST (once file upload finishes)
+server.on("/update", HTTP_POST, [&]() {
+	server.sendHeader("Connection", "close");
+	server.sendHeader("Access-Control-Allow-Origin", "*");
+	server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+}, [&]() {
+	// handler for the file upload, get's the sketch bytes, and writes
+	// them through the Update object
+	HTTPUpload& upload = server.upload();
+	if (upload.status == UPLOAD_FILE_START) {
+		Serial.printf("Starting HTTP update from %s - other functions will be suspended.\r\n", upload.filename.c_str());
+		currentEffectId = 2;
+		state.color = CRGB::OrangeRed;
 
-			//doRestartServices = true; //why would we do this when we are about to reboot anyway
-			WiFiUDP::stopAll();
+		//doRestartServices = true; //why would we do this when we are about to reboot anyway
+		WiFiUDP::stopAll();
 
-			uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-			if(!Update.begin(maxSketchSpace)){//start with max available size
-				//if(DEBUG) Update.printError(Serial);
-				state.color = CRGB::Red;
-			}
-		} else if(upload.status == UPLOAD_FILE_WRITE){
-			Serial.print(upload.totalSize); Serial.printf(" bytes written\r");
-			runLeds();
-
-			state.intEffectState = ( upload.totalSize / ( 350000 / numpixels ) );
-			if ( state.intEffectState >= numpixels ) {
-				state.intEffectState = numpixels-1;
-			}
-
-			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
-				//if(DEBUG) Update.printError(Serial);
-				state.color = CRGB::Red;
-			}
-		} else if(upload.status == UPLOAD_FILE_END){
-			if(Update.end(true)){ //true to set the size to the current progress
-				Serial.printf("Update Success: %u\n", upload.totalSize);
-				state.color = CRGB::Yellow;
-				runLeds();
-				doRestartDevice = true;
-				EEPROM.begin(256);
-				EEPROM.write(6,1);
-				EEPROM.end(); //notify that we just installed an update OTA.
-			} else {
-				//if(DEBUG) Update.printError(Serial);
-				state.color = CRGB::Red;
-			}
-		} else if(upload.status == UPLOAD_FILE_ABORTED){
-			Update.end();
-			Serial.println("Update was aborted");
+		uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+		if (!Update.begin(maxSketchSpace)) { //start with max available size
+			//if(DEBUG) Update.printError(Serial);
 			state.color = CRGB::Red;
 		}
-		delay(0);
-	});
-	server.on("/style.css", [&](){
-		server.send(200, "text/css",R"(
+	} else if (upload.status == UPLOAD_FILE_WRITE) {
+		Serial.print(upload.totalSize); Serial.printf(" bytes written\r");
+		runLeds();
+
+		state.intEffectState = ( upload.totalSize / ( 350000 / numpixels ) );
+		if ( state.intEffectState >= numpixels ) {
+			state.intEffectState = numpixels - 1;
+		}
+
+		if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+			//if(DEBUG) Update.printError(Serial);
+			state.color = CRGB::Red;
+		}
+	} else if (upload.status == UPLOAD_FILE_END) {
+		if (Update.end(true)) { //true to set the size to the current progress
+			Serial.printf("Update Success: %u\n", upload.totalSize);
+			state.color = CRGB::Yellow;
+			runLeds();
+			doRestartDevice = true;
+			EEPROM.begin(256);
+			EEPROM.write(6, 1);
+			EEPROM.end(); //notify that we just installed an update OTA.
+		} else {
+			//if(DEBUG) Update.printError(Serial);
+			state.color = CRGB::Red;
+		}
+	} else if (upload.status == UPLOAD_FILE_ABORTED) {
+		Update.end();
+		Serial.println("Update was aborted");
+		state.color = CRGB::Red;
+	}
+	delay(0);
+});
+server.on("/style.css", [&]() {
+	server.send(200, "text/css", R"(
 			html {
 				font-family:sans-serif;
 				background-color:black;
@@ -956,9 +953,6 @@ void loop() {
 
 				Serial.println("[Wi-Fi] Starting DNS poisoning");
 				dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-
-				Serial.println("[Wi-Fi] Setting up OTA");
-				ArduinoOTA.begin();
 
 				doRestartServices = false;
 			}
