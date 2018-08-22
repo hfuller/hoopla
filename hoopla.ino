@@ -388,13 +388,13 @@ server.on("/", [&]() {
 	String content = header;
 	server.send(200, "text/html", content);
 
-	content += R"(
+	content = R"(
 			<h1>Controls</h1>
 			<form method="PUT" action="/effects/current">
 			<select name="id" id="id">
 		)";
 	for ( int i = 0; i < emgrLoadedCount; i++ ) {
-		content += String() + '<option value="' + i + '">' + emgr.getEffect(i).name + "</option>";
+		content += String() + "<option value=\"" + i + "\">" + emgr.getEffect(i).name + "</option>";
 	}
 	content += ("</select>");
 
@@ -592,20 +592,18 @@ server.on("/palettes/current", HTTP_PUT, [&]() {
 	server.client().stop();
 });
 server.on("/saved", [&]() {
-	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-	server.sendHeader("Content-Length", "-1");
-	server.send(200, "text/html", header);
-	server.sendContent(R"(
+	String content = header;
+	content += R"(
 			<h1>Saved</h1>
 			<p>The changes you requested have been made. (The device may restart to apply these changes.)</p>
-		)");
+		)";
+	server.send(200, "text/html", content);
 	server.client().stop();
 });
 server.on("/setup", [&]() {
 	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 	server.sendHeader("Pragma", "no-cache");
 	server.sendHeader("Expires", "-1");
-	server.sendHeader("Content-Length", "-1");
 	String content = header;
 
 	content += R"(
