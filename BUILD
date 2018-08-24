@@ -1,7 +1,7 @@
 # nodemcu
 
 * Board: NodeMCU 1.0 (ESP-12E)
-* Flash Size: 4M (256K SPIFFS)
+* Flash Size: 4M (1M SPIFFS)
 * Debug port: Disabled
 * Debug level: None
 * lwIP: v1.4 High Bandwidth
