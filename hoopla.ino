@@ -18,7 +18,7 @@ ADC_MODE(ADC_VCC);
 //Effects loading
 #include "effects.h"
 
-#define VERSION			57
+#define VERSION			58
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -701,6 +701,15 @@ server.on("/setup/device", HTTP_POST, [&]() {
 	send302("/saved");
 	Serial.println("done.");
 });
+
+server.on("/ani", HTTP_POST, [&]() {
+	spiffsWrite(String("/ani/") + server.arg("id"), server.arg("contents"));
+	send302("/saved");
+});
+server.on("/ani", HTTP_GET, [&]() {
+	server.send(200, "text/plain", spiffsRead(String("/ani/") + server.arg("id")));
+});
+
 server.on("/debug", [&]() {
 	String content = header;
 	content += ("<h1>About</h1><ul>");
@@ -715,19 +724,33 @@ server.on("/debug", [&]() {
 
 	content += (R"(
 			<h2>Debugging buttons (don't touch)</h2>
-			<form method="POST" action="/debug/lowpowermode">
-				<button type="submit">Toggle low power mode now</button>
-			</form>
 			<form method='POST' action='/debug/reset'>
 				<button type='submit'>Restart</button>
-			</form>
-			<form method="POST" action="/debug/sleepforever">
-				<button type="submit">Simulate dead battery - go to sleep forever</button>
 			</form>
 			<form method='POST' action='/debug/disconnect'>
 				<button type='submit'>Forget connection info</button>
 			</form>
 		)");
+
+	#ifdef FEATURE_BATTERY
+	content += (R"(
+			<form method="POST" action="/debug/lowpowermode">
+				<button type="submit">Toggle low power mode now</button>
+			</form>
+			<form method="POST" action="/debug/sleepforever">
+				<button type="submit">Simulate dead battery - go to sleep forever</button>
+			</form>
+		)");
+	#endif
+
+	content += (R"(
+			<form method="POST" action="/ani">
+				<button type="submit">Write animation</button>
+				<input name="id" value="0" placeholder="id">
+				<input name="contents" placeholder="contents">
+			</form>
+		)");
+	
 	server.send(200, "text/html", content);
 });
 server.on("/debug/lowpowermode", [&]() {
@@ -975,6 +998,23 @@ void runLeds() {
 
 }
 
+
+//splitting string by delimiter borrowed from https://arduino.stackexchange.com/questions/1013/how-do-i-split-an-incoming-string
+String getValue(String data, char separator, int index)
+{
+	int found = 0;
+	int strIndex[] = { 0, -1 };
+	int maxIndex = data.length() - 1;
+
+	for (int i = 0; i <= maxIndex && found <= index; i++) {
+		if (data.charAt(i) == separator || i == maxIndex) {
+			found++;
+			strIndex[0] = strIndex[1] + 1;
+			strIndex[1] = (i == maxIndex) ? i+1 : i;
+		}
+	}
+	return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
 
 //HTTP STUFF borrowed from https://github.com/esp8266/Arduino/blob/master/libraries/DNSServer/examples/CaptivePortalAdvanced/CaptivePortalAdvanced.ino
 
