@@ -18,7 +18,7 @@ ADC_MODE(ADC_VCC);
 //Effects loading
 #include "effects.h"
 
-#define VERSION			58
+#define VERSION			59
 
 #define DEBUG			true
 #define Serial			if(DEBUG)Serial		//Only log if we are in debug mode
@@ -140,7 +140,7 @@ void setup() {
 		Serial.print("[start] Welcome to v"); Serial.println(VERSION);
 	}
 	byte hardwareType = EEPROM.read(1);
-	if ( hardwareType > 3 ) {
+	if ( hardwareType > 5 ) {
 		Serial.println("[start] Resetting hardware type");
 		EEPROM.write(1, 0);
 		hardwareType = 0;
@@ -192,6 +192,14 @@ void setup() {
 		case 3: //APA102 LED hoop with ESP-01
 			FastLED.addLeds<APA102, 0, 2, BGR>(leds, numpixels);
 			Serial.print("DotStars on 0,2");
+			break;
+		case 4: //Wemos D1 Mini with neopixels attached to 5V/GND/D4
+			FastLED.addLeds<NEOPIXEL, 2>(leds, numpixels);
+			Serial.print("NeoPixels on D4");
+			break;
+		case 5: //WS2811 (probably 12V) strip
+			FastLED.addLeds<WS2811, 2, GRB>(leds, numpixels);
+			Serial.print("WS2811s (GRB) on D4");
 			break;
 	}
 	Serial.println();
@@ -649,10 +657,12 @@ server.on("/setup", [&]() {
 		<h5>Don't touch this stuff!</h5>
 		<form method="POST" action="/setup/leds">
 			<select name="hardware_type" id="hardware_type"><!-- )" + String(hardwareType) + R"( -->
-				<option value="0" )" + (hardwareType == 0 ? "selected" : "") + R"(>Custom setup from config.h (set at build)</option>
-				<option value="1" )" + (hardwareType == 1 ? "selected" : "") + R"(>NeoPixels on GPIO4(D2) (Wemos D1 Mini with NeoPixel shield)</option>
-				<option value="2" )" + (hardwareType == 2 ? "selected" : "") + R"(>NeoPixels on GPIO5(D1) (Makers Local 256; Synapse Wireless)</option>
-				<option value="3" )" + (hardwareType == 3 ? "selected" : "") + R"(>DotStars on GPIO0(D3)/GPIO2(D4) (JC Hoop)</option>
+				<option value="0" )" + (hardwareType == 0 ? "selected" : "") + R"(>Custom setup from config.h - set at build</option>
+				<option value="1" )" + (hardwareType == 1 ? "selected" : "") + R"(>NeoPixels on GPIO4(D2) - Wemos D1 Mini with NeoPixel shield</option>
+				<option value="2" )" + (hardwareType == 2 ? "selected" : "") + R"(>NeoPixels on GPIO5(D1) - Synapse Wireless</option>
+				<option value="3" )" + (hardwareType == 3 ? "selected" : "") + R"(>DotStars on GPIO0(D3)/GPIO2(D4) - JC Hoop</option>
+				<option value="4" )" + (hardwareType == 4 ? "selected" : "") + R"(>NeoPixels on GPIO2(D4) - Wemos D1 Mini quick connect</option>
+				<option value="5" )" + (hardwareType == 5 ? "selected" : "") + R"(>WS2811s on GPIO2(D4) - UAH I2C</option>
 			</select>
 			<input name="numpixels" placeholder="Number of LEDs" value=")" + String(numpixels) + R"(">
 			<input name="maxLoadMilliamps" placeholder="Maximum milliamps to draw" value=")" + String(maxLoadMilliamps) + R"(">
