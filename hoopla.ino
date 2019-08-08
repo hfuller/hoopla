@@ -16,7 +16,7 @@ ADC_MODE(ADC_VCC);
 #include <NotoriousSync.h>
 
 //Effects loading
-#include "effects.h"
+#include "EffectManager.h"
 
 #define VERSION			59
 

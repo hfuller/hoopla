@@ -1,5 +1,5 @@
-#ifndef EFFECTS_H
-#define EFFECTS_H
+#ifndef EFFECTMANAGER_H
+#define EFFECTMANAGER_H
 
 
 #include <Arduino.h>
@@ -48,5 +48,5 @@ class EffectManager {
 };
 
 
-#endif (ifndef EFFECTS_H)
+#endif (ifndef EFFECTMANAGER_H)
 
