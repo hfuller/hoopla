@@ -64,6 +64,7 @@ bool doRestartServices = true;
 bool doRestartDevice = false;
 bool doEffects = true;
 bool allowApMode = true;
+bool forceApMode = true;
 
 void runLeds();
 void handleSetupWifiPost();
@@ -219,14 +220,19 @@ void setup() {
 	emgrPaletteCount = emgr.getPaletteCount();
 	Serial.print("[start] loader loaded "); Serial.println(emgrLoadedCount);
 
-	Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID()); //Serial.print(" with key: "); Serial.println(WiFi.psk());
-	WiFi.SSID().toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
-	WiFi.psk().toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
 	lastWirelessChange = millis();
-	WiFi.mode(WIFI_STA);
-	WiFi.setAutoReconnect(false);
 	WiFi.hostname(devHostName);
-	WiFi.begin();
+	WiFi.setAutoReconnect(false);
+	if ( WiFi.SSID() == "" ) {
+		forceApMode = true;
+		Serial.println("[start] Forcing AP mode because we don't have an SSID set.");
+	} else {
+		Serial.print("[start] Attempting to associate (STA) to "); Serial.println(WiFi.SSID()); //Serial.print(" with key: "); Serial.println(WiFi.psk());
+		WiFi.SSID().toCharArray(ssidTemp, sizeof(ssidTemp) - 1);
+		WiFi.psk().toCharArray(passwordTemp, sizeof(passwordTemp) - 1);
+		WiFi.mode(WIFI_STA);
+		WiFi.begin();
+	}
 
 	Serial.print("[start] Starting DNS on "); Serial.println(WiFi.softAPIP());
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -917,9 +923,9 @@ void loop() {
 				//In the second case, the SDK claims we are associated but we are totally not
 				doConnect = true;
 			}
-		} else if ( (millis() - lastWirelessChange) > 15000 ) {
+		} else if ( forceApMode || (millis() - lastWirelessChange) > 15000 ) {
 			//We tried to associate to wireless somewhere between 15 and 60 seconds ago.
-			if ( WiFi.status() != WL_CONNECTED && !isAP && allowApMode ) { //We have been trying to associate for far too long.
+			if ( forceApMode || WiFi.status() != WL_CONNECTED && !isAP && allowApMode ) { //We have been trying to associate for far too long.
 				Serial.println("[Wi-Fi] Client giving up");
 				//WiFi.disconnect(); //Don't do this or it will clear the ssid/pass in nvram!!!!!
 				Serial.println("[Wi-Fi] Starting wireless AP");
