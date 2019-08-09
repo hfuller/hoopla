@@ -1,10 +1,13 @@
 //Comment this if you don't want battery checking support.
-#define FEATURE_BATTERY
+//#define FEATURE_BATTERY
 
 //Comment this if you don't want RGBW support.
 //This support is provided by coryking's FastLED fork. https://github.com/coryking/FastLED
 //If you want to build with stock FastLED, you will have to comment this.
-#define FASTLED_RGBW
+//#define FASTLED_RGBW
+
+//Uncomment this if you're probably going to drive WS2811s.
+//#define FASTLED_ALLOW_INTERRUPTS 0
 
 
 //If you want to define a custom hardware type, change the LED_CONFIG macro.
