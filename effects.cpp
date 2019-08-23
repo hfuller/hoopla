@@ -195,6 +195,17 @@ EffectManager::EffectManager() {
 		}
 		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
 	});
+	addEffect("DEBUG Alignment", false, [](EffectState *state) {
+		fill_solid(leds, numpixels, CRGB::Black);
+		//first pixel green; last pixel red
+		leds[0] = CRGB::Green;
+		leds[numpixels-1] = CRGB::Red;
+		//skip 15, then every nth pixel blue (don't ask)
+		for ( int x = 15; x < numpixels; x += 30 ) {
+			leds[x] = CRGB::Blue;
+		}
+	});
+
 
 	Serial.println("[e.cpp] Loading palettes");
 	addPalette("Rainbow gradient", RainbowColors_p);
