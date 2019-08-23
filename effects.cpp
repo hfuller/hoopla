@@ -1,6 +1,9 @@
 #include "EffectManager.h"
 #include "globals.h"
+#include <Adafruit_GFX.h>
+#include <FastLED_NeoMatrix.h>
 #include <FastLED.h>
+
 
 void blankEveryOtherPixel() {
 	for ( int i=0; i < numpixels; i = i+2 ) {
@@ -12,6 +15,10 @@ EffectManager::EffectManager() {
 	Serial.println("[e.cpp] Effect Manager!! wooo");
 	efxCount = 0;
 	pltCount = 0;
+
+	Serial.println("[e.cpp] Building the matrix");
+	matrix->begin();
+	matrix->setTextWrap(false);
 
 	Serial.println("[e.cpp] Loading effects");
 
@@ -194,6 +201,14 @@ EffectManager::EffectManager() {
 			leds[random16(numpixels)] += CRGB::White;
 		}
 		if ( state->lowPowerMode ) { blankEveryOtherPixel(); }
+	});
+	addEffect("Text", false, [](EffectState *state) {
+		//matrix->fillScreen(0);
+		//matrix->setCursor(state->intEffectState, 0);			
+		//matrix->print(F("Test"));
+		//if ( --state->intEffectState < -30 ) {
+		//	state->intEffectState = matrix->width();
+		//}
 	});
 
 	Serial.println("[e.cpp] Loading palettes");

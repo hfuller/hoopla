@@ -8,6 +8,7 @@ ADC_MODE(ADC_VCC);
 
 #include <ESP8266WiFi.h>
 #include <FastLED.h>
+#include <FastLED_NeoMatrix.h>
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <FS.h>
@@ -42,6 +43,7 @@ ESP8266WebServer server(80);
 NotoriousSync sync;
 
 CRGB leds[400];					//NOTE: we write all pixels in some cases, like when blanking the strip.
+FastLED_NeoMatrix *matrix = new FastLED_NeoMatrix(leds, 16, 16, 1, 1, NEO_MATRIX_BOTTOM    + NEO_MATRIX_RIGHT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
 
 unsigned long timer1s;
 unsigned long frameCount;
