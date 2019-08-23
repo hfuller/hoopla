@@ -64,7 +64,7 @@ bool doRestartServices = true;
 bool doRestartDevice = false;
 bool doEffects = true;
 bool allowApMode = true;
-bool forceApMode = true;
+bool forceApMode = false;
 
 void runLeds();
 void handleSetupWifiPost();
