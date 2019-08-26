@@ -819,9 +819,10 @@ server.on("/debug/sleepforever", [&]() {
 	sleepForever();
 });
 server.on("/debug/disconnect", [&]() {
-	send302("/debug?done");
+	send302("/saved?restarting=true");
 	delay(500);
 	WiFi.disconnect();
+	doRestartDevice = true;
 });
 server.on("/debug/test", [&]() {
 	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
