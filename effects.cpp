@@ -36,6 +36,10 @@ EffectManager::EffectManager() {
 		//state->intEffectState = where on the strip to write a solid LED.
 		fill_solid(leds, numpixels, CRGB::Black);
 		leds[state->intEffectState] = state->color;
+
+		EVERY_N_MILLISECONDS(1000) {
+			state->intEffectState = 0;
+		}
 	});
 	addEffect("% Lightning", false, [](EffectState *state){
 		fill_solid(leds, numpixels, CRGB::Black);
