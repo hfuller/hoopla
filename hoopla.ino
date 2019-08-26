@@ -14,6 +14,7 @@ ADC_MODE(ADC_VCC);
 #include <EEPROM.h>
 #include <ESP8266httpUpdate.h>
 #include <NotoriousSync.h>
+#include <WiFiUdp.h>
 
 #ifdef FEATURE_MATRIX
 //Terrible text hack stuff
@@ -46,9 +47,12 @@ int numpixels = 1;
 int maxLoadMilliamps = 400;
 
 const byte DNS_PORT = 53;
+IPAddress broadcastIP(192, 168, 4, 255);
 DNSServer dnsServer;
 ESP8266WebServer server(80);
 NotoriousSync sync;
+WiFiUDP udp;
+byte udpIncoming[16];
 
 CRGB leds[400];					//NOTE: we write all pixels in some cases, like when blanking the strip.
 
@@ -905,7 +909,17 @@ void loop() {
 		//If we don't wait until they have been started,
 		//the service will blow up because it tries to
 		//work without the setup functions being run first.
+
 		dnsServer.processNextRequest();
+
+		if ( udp.parsePacket() > 0 ) {
+			if ( udp.read(udpIncoming, 16) > 0 ) {
+				//correct packet length.
+				currentEffectId = udpIncoming[0];
+			} else {
+				Serial.println("[cntrl] Received UDP packet with invalid length");
+			}
+		}
 	}
 
 	EVERY_N_MILLISECONDS(1000) {
@@ -924,12 +938,11 @@ void loop() {
 		timer1s = millis();
 		frameCount = 0;
 
-		/*
-			if ( currentEffectId <= 2 && millis() < 10000 ) {
-			//we are stuck in a status display
-			currentEffectId = 6;
-			}
-		*/
+		if ( isAP ) {
+			udp.beginPacket(broadcastIP, 7960);
+			udp.write(currentEffectId);
+			udp.endPacket();
+		}
 
 	}
 	EVERY_N_MILLISECONDS(5000) {
@@ -983,6 +996,9 @@ void loop() {
 
 				Serial.println("[Wi-Fi] Starting DNS poisoning");
 				dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+
+				Serial.println("[Wi-Fi] Starting UDP listener");
+				udp.begin(7960);
 
 				doRestartServices = false;
 			}
