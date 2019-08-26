@@ -928,29 +928,6 @@ void loop() {
 		}
 	}
 
-	EVERY_N_MILLISECONDS(1000) {
-
-		//time to do our every-second tasks
-
-#ifdef DEBUG
-		actualFrameRate = (double)frameCount / ((double)(millis() - timer1s) / 1000);
-		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(actualFrameRate);
-		uint32_t loadmw = calculate_unscaled_power_mW(leds, numpixels);
-		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw / 5); Serial.print("mA) - ");
-		Serial.print("Wi-Fi: "); Serial.print( (WiFi.status() == WL_CONNECTED) ? "Connected" : "Disconnected");
-		Serial.println();
-#endif /*DEBUG*/
-
-		timer1s = millis();
-		frameCount = 0;
-
-		if ( isAP ) {
-			udp.beginPacket(broadcastIP, 7960);
-			udp.write(currentEffectId);
-			udp.endPacket();
-		}
-
-	}
 	EVERY_N_MILLISECONDS(5000) {
 
 		//do Wi-Fi stuff
@@ -1036,6 +1013,29 @@ void loop() {
 		
 		if ( doRestartDevice ) {
 			ESP.restart();
+		}
+
+	}
+	
+	EVERY_N_MILLISECONDS(1000) {
+
+
+#ifdef DEBUG
+		actualFrameRate = (double)frameCount / ((double)(millis() - timer1s) / 1000);
+		Serial.print("[Hbeat] FRAME RATE: "); Serial.print(actualFrameRate);
+		uint32_t loadmw = calculate_unscaled_power_mW(leds, numpixels);
+		Serial.print(" - LOAD: "); Serial.print(loadmw); Serial.print("mW ("); Serial.print(loadmw / 5); Serial.print("mA) - ");
+		Serial.print("Wi-Fi: "); Serial.print( (WiFi.status() == WL_CONNECTED) ? "Connected" : "Disconnected");
+		Serial.println();
+#endif /*DEBUG*/
+
+		timer1s = millis();
+		frameCount = 0;
+
+		if ( isAP ) {
+			udp.beginPacket(broadcastIP, 7960);
+			udp.write(currentEffectId);
+			udp.endPacket();
 		}
 
 	}
