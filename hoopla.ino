@@ -673,7 +673,7 @@ server.on("/setup", [&]() {
 		<h4>Connect to a network</h4>
 		<form method='POST' id='setup-wifi' action='/setup/wifi'>
 			<input type='text' id='ssidinput' placeholder='network' value=')" + String(WiFi.SSID()) + R"(' name='n'>
-			<input type='password' id='pskinput' placeholder='password' value=')" + String(WiFi.psk()) + R"(' name='p'>
+			<input type='text' id='pskinput' placeholder='password' value=')" + String(WiFi.psk()) + R"(' name='p' minlength="8" maxlength="63">
 			<button type='submit'>Save and Connect</button>
 		</form>
 	)";
