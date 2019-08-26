@@ -151,8 +151,6 @@ void setup() {
 		spiffsWrite("/psk", "");
 	}
 	spiffsRead("/psk").toCharArray(passwordAP, 32);
-	Serial.println("[start] Overriding saved PSK to wide-open"); //HACK HACK HACK
-	String().toCharArray(passwordAP, 32);
 	Serial.print("[start] Hello from "); Serial.println(devHostName);		
 
 	Serial.println("[start] Loading configuration from eeprom");
@@ -684,6 +682,7 @@ server.on("/setup", [&]() {
 		<h4>Device setup</h4>
 		<form method="POST" id="setup-device" action="/setup/device">
 			<input name="name" placeholder="Device name" value=")" + spiffsRead("/name") + R"(">
+			<input type="password" name="psk" placeholder="Device password" value=")" + spiffsRead("/psk") + R"(" maxlength="63">
 			<button type="submit">Save</button>
 		</form>
 	)";
@@ -746,6 +745,11 @@ server.on("/setup/leds", HTTP_POST, [&]() {
 server.on("/setup/device", HTTP_POST, [&]() {
 	Serial.print("[httpd] Device settings post. ");
 	spiffsWrite("/name", server.arg("name"));
+	if ( server.arg("psk").length() < 8 ) {
+		spiffsWrite("/psk", String());
+	} else {
+		spiffsWrite("/psk", server.arg("psk"));
+	}
 
 	send302("/saved");
 	Serial.println("done.");
