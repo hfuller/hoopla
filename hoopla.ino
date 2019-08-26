@@ -15,6 +15,15 @@ ADC_MODE(ADC_VCC);
 #include <ESP8266httpUpdate.h>
 #include <NotoriousSync.h>
 
+#ifdef FEATURE_MATRIX
+//Terrible text hack stuff
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_DotStarMatrix.h>
+#include <Adafruit_DotStar.h>
+#include <Fonts/Org_01.h>
+#endif
+
 //Effects loading
 #include "EffectManager.h"
 
@@ -42,6 +51,17 @@ ESP8266WebServer server(80);
 NotoriousSync sync;
 
 CRGB leds[400];					//NOTE: we write all pixels in some cases, like when blanking the strip.
+
+#ifdef FEATURE_MATRIX
+Adafruit_DotStarMatrix matrix = Adafruit_DotStarMatrix(
+	30,5,
+	0,2,
+	DS_MATRIX_TOP+DS_MATRIX_LEFT + 
+	DS_MATRIX_ROWS+DS_MATRIX_ZIGZAG,
+	DOTSTAR_BGR
+);
+int textX = matrix.width();
+#endif
 
 unsigned long timer1s;
 unsigned long frameCount;
@@ -175,6 +195,17 @@ void setup() {
 	}
 	FastLED.setBrightness(brightness);
 	EEPROM.end(); //write the "EEPROM" to flash (on an ESP anyway)
+
+	#ifdef FEATURE_MATRIX
+	Serial.println("Overriding hardwareType to 1 because this is the text mod");
+	hardwareType = 255;
+
+	Serial.println("Starting "); Serial.print(numpixels); Serial.println("px DotStar Matrix on 0,2");
+	matrix.begin();
+	matrix.setBrightness(brightness);
+	matrix.setTextWrap(false);
+	matrix.setFont(&Org_01);
+	#endif
 
 	Serial.print("[start] Starting "); Serial.print(numpixels); Serial.print(" ");
 	switch (hardwareType) {
@@ -1009,6 +1040,25 @@ void runLeds() {
 	frameCount++; //for frame rate measurement
 	emgr.getEffect(currentEffectId).run(&state); //Pass our state struct to the effect.
 	show_at_max_brightness_for_power(); //FastLED.show();
+
+	#ifdef FEATURE_MATRIX
+	//copy the background from FastLED
+	for ( int x = 0; x < numpixels; x++ ) {
+		matrix.setPixelColor(x, matrix.Color(leds[x].r, leds[x].g, leds[x].b));
+	}
+	//render text
+	EVERY_N_MILLISECONDS(50) {
+		textX--;
+	}
+	if ( textX < -60 ) {
+		textX = matrix.width();
+	}
+	matrix.setCursor(textX,4);
+	matrix.setTextColor(matrix.Color(255, 255, 255));
+	matrix.print(F("HELL YEAH!"));
+	//show
+	matrix.show();
+	#endif
 
 }
 
