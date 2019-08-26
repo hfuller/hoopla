@@ -920,6 +920,7 @@ void loop() {
 		if ( udp.parsePacket() > 0 ) {
 			if ( udp.read(udpIncoming, 16) > 0 ) {
 				//correct packet length.
+				attractMode = false;
 				currentEffectId = udpIncoming[0];
 			} else {
 				Serial.println("[cntrl] Received UDP packet with invalid length");
